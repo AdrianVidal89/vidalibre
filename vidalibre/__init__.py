@@ -62,6 +62,29 @@ class Ajustes:
         return self.datos / "temporales"
 
 
+def _barrer_temporales(ajustes, dias=2):
+    """Tira los convertidos sueltos de hace días.
+
+    Lo que se convierte "para descargármelo" no entra en la biblioteca: se
+    queda en una carpeta de paso. Sin esto, cada conversión de esas deja un
+    libro ahí para siempre y la carpeta de datos crece sola.
+    """
+    import shutil
+    import time
+
+    limite = time.time() - dias * 86400
+    try:
+        for carpeta in ajustes.temporales.iterdir():
+            try:
+                if carpeta.stat().st_mtime < limite:
+                    shutil.rmtree(carpeta, ignore_errors=True) if carpeta.is_dir() \
+                        else carpeta.unlink(missing_ok=True)
+            except OSError:
+                continue
+    except OSError:
+        pass
+
+
 def crear_app(ajustes=None):
     from flask import Flask
 
@@ -87,6 +110,7 @@ def crear_app(ajustes=None):
             carpeta.mkdir(parents=True, exist_ok=True)
         except OSError:
             pass
+    _barrer_temporales(ajustes)
 
     catalogo = Catalogo(ajustes.biblioteca)
     app.config["CATALOGO"] = catalogo

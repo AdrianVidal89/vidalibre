@@ -43,6 +43,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY vidalibre/ ./vidalibre/
 COPY servidor.py LEEME.md LICENSE ./
 
+# Calibre escribe su configuración y su caché en estas carpetas. El contenedor
+# corre como adrian (1000), no como root: si no existen y con permiso de
+# escritura, cada conversión suelta un aviso de «no write access».
+# (La comprobación de Calibre durante la construcción corre como root y deja
+# /tmp/config/calibre a su nombre: por eso se borra antes de rehacerlo.)
+RUN rm -rf /tmp/config /tmp/cache /tmp/calibre-installer-cache \
+    && mkdir -p /tmp/config /tmp/cache \
+    && chmod 1777 /tmp/config /tmp/cache
+
 ENV VIDALIBRE_BIBLIOTECA=/biblioteca \
     VIDALIBRE_DATOS=/datos \
     VIDALIBRE_MODO=nas \
