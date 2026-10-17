@@ -12,9 +12,14 @@ motor va entero aquí dentro.
 
 ## Qué hace
 
-- **Biblioteca**: rejilla de portadas, buscador que mira título, autor, serie,
-  etiquetas, editorial y hasta la descripción, y estantes por autor, serie,
-  etiqueta, editorial e idioma.
+- **Leer, con un lector propio estilo Kindle**: páginas que pasan con un toque
+  o deslizando, letra, interlineado, márgenes y color a elegir (claro, sepia,
+  noche y negro), índice, búsqueda dentro del libro, cuánto queda del capítulo
+  y memoria de por dónde ibas, compartida entre el móvil, la tablet y el
+  ordenador.
+- **Biblioteca**: rejilla de portadas con lo leído de cada libro, buscador que
+  mira título, autor, serie, etiquetas, editorial y hasta la descripción, y
+  estantes por autor, serie, etiqueta, editorial e idioma.
 - **Subir libros**: EPUB, MOBI, AZW3, PDF, FB2, DOCX, CBZ… De cada fichero lee
   por dentro el título, el autor, la serie, las etiquetas y la portada, y lo
   coloca en `Autor/Título (id)/` como hace Calibre.
@@ -33,6 +38,25 @@ motor va entero aquí dentro.
 - **OPDS**: KOReader, Moon+ Reader o Panels se conectan a `/opds` y navegan la
   biblioteca y se descargan los libros solos.
 
+## El lector
+
+No usa ninguna de las bibliotecas de JavaScript que se llevan para esto
+(epub.js y compañía). Esas se descargan el libro **entero** al navegador, lo
+descomprimen en memoria y lo pintan: con un libro de 12 MB eso es medio móvil
+ocupado y varios segundos de espera por WiFi. Aquí el EPUB se abre en el
+servidor, que manda **solo el capítulo que toca** ya preparado; el móvil recibe
+unas decenas de kilobytes cada vez.
+
+La paginación la hace el navegador repartiendo el texto en columnas del ancho
+de la pantalla, y pasar página es correr esa cinta de columnas. La altura de
+la página se ajusta a un número entero de líneas: sin eso, la última línea de
+cada página sale cortada por la mitad, que es lo que delata a los lectores
+hechos con prisa.
+
+Por dónde vas se guarda en `last_read_positions`, una tabla que el propio
+Calibre ya trae para eso: no hay base de datos aparte, y empiezas en el móvil
+y sigues en el ordenador.
+
 ## Las dos copias
 
 El mismo código corre en dos sitios, con el mismo catálogo:
@@ -41,6 +65,15 @@ El mismo código corre en dos sitios, con el mismo catálogo:
 |---|---|---|---|
 | **NAS** | contenedor en el NAS, puerto 8084 | la biblioteca de casa, siempre encendida | no (un servidor no ve los USB del portátil) |
 | **Ordenador** | `vidalibre` o el icono del menú | lo mismo **y** el Kindle enchufado | sí |
+
+**Quién escribe el catálogo.** Solo el NAS. La copia del ordenador ve la
+biblioteca como una carpeta de red y por ahí SQLite no sabe echar sus cerrojos:
+se probó y falló en caliente (el portátil quiso apuntar algo justo mientras el
+NAS convertía un libro, y se encontró la base de datos bloqueada). Así que el
+ordenador lee directamente de la carpeta —que es rápido y no molesta— y cuando
+hay algo que apuntar se lo pide al NAS por la misma web que usa el navegador
+(`puente.py`). Se configura con `VIDALIBRE_SERVIDOR`; si no se pone, la copia
+del ordenador avisa de que no puede cambiar fichas.
 
 ## Instalar en el ordenador
 
@@ -64,6 +97,18 @@ sh deploy.sh logs 80
 sh deploy.sh parar
 ```
 
+Para ponerlo al día desde GitHub (es lo que hace el botón del actualizador del
+NAS, en el 8091): `sh extras/actualizar.sh`, que vive fuera de la carpeta que
+reemplaza y conserva el `.env` y la carpeta `datos/`.
+
+**Memoria.** En reposo son unos 38 MB; una conversión sube a unos 175 MB (lo
+que pide Calibre) y vuelve a bajar. El techo del contenedor está en 512 MB.
+Para que eso se cumpla hay cuatro cosas puestas a propósito, y conviene no
+quitarlas: `MALLOC_ARENA_MAX=2` (sin ella la biblioteca de C reserva por hilo y
+la aplicación aparenta el doble), cuatro hilos de servidor y no más,
+descodificar las portadas ya reducidas en vez de encogerlas después, y
+devolverle al sistema la memoria al terminar cada conversión.
+
 La imagen lleva Calibre dentro, así que **la primera construcción tarda** y
 ocupa. `deploy.sh` guarda una copia del catálogo (`metadata.db`) antes de cada
 despliegue, en `datos/copias/`, y conserva las diez últimas.
@@ -76,8 +121,11 @@ vidalibre/
   ficheros.py     carpetas, nombres, portadas y metadata.opf
   motor.py        ebook-convert y ebook-meta + la cola de trabajos
   dispositivo.py  el Kindle por USB
+  lector.py       abrir un EPUB y servirlo capítulo a capítulo
+  puente.py       los cambios que el portátil le pide al NAS
   servicio.py     las operaciones completas (subir, editar, convertir, enviar)
   web.py          las pantallas
+  lector_web.py   las pantallas del lector
   opds.py         el catálogo para las apps de lectura
 ```
 
@@ -102,6 +150,8 @@ Cuatro decisiones que explican el resto:
 | Las conversiones fallan todas | ¿hay Calibre? `/estado` dice la versión del motor |
 | Un libro sale con el botón de descarga rayado | el catálogo lo apunta pero el fichero no está en disco |
 | Va lento al listar | las miniaturas se cachean en `datos/miniaturas`; la primera vuelta es la lenta |
+| Un libro tarda en abrirse la primera vez | se cuentan sus palabras para saber el porcentaje y los minutos; queda guardado en `datos/medidas` y la segunda vez es instantáneo |
+| «Esto se hace en la biblioteca de casa» | estás en la copia del ordenador, que no escribe el catálogo: ese cambio se hace en el NAS |
 
 ## Licencia y de dónde sale
 
