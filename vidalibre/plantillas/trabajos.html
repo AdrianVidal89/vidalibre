@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block titulo %}Trabajos{% endblock %}
+{% block contenido %}
+<h1>Trabajos</h1>
+<p class="explica">Conversiones y envíos. Puedes cerrar esta página: siguen solos.</p>
+<ul class="trabajos" id="lista-trabajos" data-destacado="{{ destacado }}">
+  {% for trabajo in trabajos %}
+  <li class="trabajo estado-{{ trabajo.estado | replace(' ', '-') }}" data-id="{{ trabajo.id }}">
+    <div class="trabajo-cabeza">
+      <b>{{ trabajo.titulo }}</b>
+      <span class="estado">{{ trabajo.estado }}{% if trabajo.pasos > 1 %} · {{ trabajo.paso }}/{{ trabajo.pasos }}{% endif %}</span>
+    </div>
+    <div class="progreso"><i style="width: {{ trabajo.porcentaje }}%"></i></div>
+    <p class="detalle">{{ trabajo.detalle }}</p>
+    {% if trabajo.resultados %}
+    <ul class="resultados">
+      {% for resultado in trabajo.resultados[:50] %}
+      <li>
+        {% if resultado.libro %}<a href="{{ url_for('paginas.libro', id_libro=resultado.libro) }}">{{ resultado.texto }}</a>
+        {% elif resultado.descarga %}<a href="{{ url_for('paginas.descargar_resultado', id_trabajo=trabajo.id, nombre=resultado.descarga) }}">⬇ {{ resultado.texto }}</a>
+        {% else %}{{ resultado.texto }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <details><summary>Ver el detalle</summary><pre>{{ trabajo.lineas | join('\n') }}</pre></details>
+    {% if trabajo.estado in ('en cola', 'en marcha') %}
+    <form method="post" action="{{ url_for('paginas.cancelar_trabajo', id_trabajo=trabajo.id) }}">
+      <button class="peligro pequeno">Cancelar</button>
+    </form>
+    {% endif %}
+  </li>
+  {% else %}
+  <li class="vacio">Todavía no has lanzado nada.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

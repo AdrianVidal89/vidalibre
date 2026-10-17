@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block titulo %}{{ ajustes.titulo }}{% endblock %}</title>
+<link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml">
+<link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icono-180.png') }}">
+<meta name="theme-color" content="#132742">
+<link rel="search" type="application/opensearchdescription+xml" title="{{ nombre_app }}"
+      href="{{ url_for('opds.buscador') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v={{ version }}">
+</head>
+<body>
+<header class="cabecera">
+  <a class="marca" href="{{ url_for('paginas.inicio') }}">
+    <img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="38" height="38">
+    <span>
+      <strong>{{ ajustes.titulo }}</strong>
+      <small>{% if ajustes.modo == 'local' %}en este ordenador{% else %}biblioteca de casa{% endif %}</small>
+    </span>
+  </a>
+
+  <form class="buscador" action="{{ url_for('paginas.inicio') }}" method="get" role="search">
+    <input type="search" name="q" placeholder="Buscar por título, autor, serie, etiqueta…"
+           value="{{ request.args.get('q', '') }}" autocomplete="off">
+    <button type="submit" aria-label="Buscar">Buscar</button>
+  </form>
+
+  <nav class="menu">
+    <a href="{{ url_for('paginas.inicio') }}" {% if request.endpoint == 'paginas.inicio' %}class="activo"{% endif %}>Libros</a>
+    <a href="{{ url_for('paginas.estantes', tipo='autores') }}" {% if request.endpoint == 'paginas.estantes' %}class="activo"{% endif %}>Estantes</a>
+    <a href="{{ url_for('paginas.subir') }}" {% if request.endpoint == 'paginas.subir' %}class="activo"{% endif %}>Subir</a>
+    <a href="{{ url_for('paginas.convertir_en_bloque') }}" {% if request.endpoint == 'paginas.convertir_en_bloque' %}class="activo"{% endif %}>Convertir</a>
+    {% if ajustes.con_dispositivo %}
+    <a href="{{ url_for('paginas.aparato') }}" {% if request.endpoint == 'paginas.aparato' %}class="activo"{% endif %}>Kindle</a>
+    {% endif %}
+    <a href="{{ url_for('paginas.trabajos') }}" {% if request.endpoint == 'paginas.trabajos' %}class="activo"{% endif %}>
+      Trabajos{% if trabajos_activos %} <span class="punto" title="{{ trabajos_activos }} en marcha"></span>{% endif %}
+    </a>
+  </nav>
+</header>
+
+{% with mensajes = get_flashed_messages(with_categories=true) %}
+  {% if mensajes %}
+  <div class="avisos">
+    {% for categoria, texto in mensajes %}
+      <p class="aviso {{ categoria }}">{{ texto }}</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<main>{% block contenido %}{% endblock %}</main>
+
+<footer class="pie">
+  <a href="{{ url_for('paginas.acerca') }}">{{ nombre_app }} {{ version }}</a> ·
+  <a href="{{ url_for('opds.raiz') }}">catálogo OPDS</a> ·
+  biblioteca en <code>{{ ajustes.biblioteca }}</code>
+</footer>
+<script src="{{ url_for('static', filename='vidalibre.js') }}?v={{ version }}"></script>
+{% block guion %}{% endblock %}
+</body>
+</html>

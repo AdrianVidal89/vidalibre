@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="barra">
+  <div class="filtros"><strong>{{ titulo }}</strong><span>{{ elementos | length }} en la biblioteca</span></div>
+  <nav class="ordenar">
+    {% for clave, datos in categorias.items() %}
+    <a class="chip {% if clave == tipo %}activo{% endif %}" href="{{ url_for('paginas.estantes', tipo=clave) }}">{{ datos[0] }}</a>
+    {% endfor %}
+  </nav>
+</div>
+<ul class="estantes">
+  {% for elemento in elementos %}
+  <li>
+    <a href="{{ url_for('paginas.inicio', **{parametro: elemento.nombre}) }}">
+      <span>{% if tipo == 'idiomas' %}{{ elemento.nombre | idioma }}{% else %}{{ elemento.nombre }}{% endif %}</span>
+      <i>{{ elemento.libros }}</i>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

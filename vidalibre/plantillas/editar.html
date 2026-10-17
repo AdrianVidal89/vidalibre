@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block titulo %}Editar: {{ libro.titulo }}{% endblock %}
+{% block contenido %}
+<form class="formulario" method="post" enctype="multipart/form-data"
+      action="{{ url_for('paginas.editar', id_libro=libro.id) }}">
+  <h1>Editar propiedades</h1>
+  {% if aviso %}<p class="aviso aviso">{{ aviso }}</p>{% endif %}
+
+  <div class="dos-columnas">
+    <div>
+      <label>Título
+        <input type="text" name="titulo" value="{{ libro.titulo }}" required>
+      </label>
+      <label>Autores <small>separados por &amp;</small>
+        <input type="text" name="autores" value="{{ libro.autores | join(' & ') }}">
+      </label>
+      <div class="pareja">
+        <label>Serie<input type="text" name="serie" value="{{ libro.serie or '' }}" list="lista-series"></label>
+        <label>Nº<input type="number" step="0.5" name="indice_serie" value="{{ libro.indice_serie or 1 }}"></label>
+      </div>
+      <label>Editorial
+        <input type="text" name="editorial" value="{{ libro.editorial or '' }}">
+      </label>
+      <div class="pareja">
+        <label>Publicado
+          <input type="date" name="publicado" value="{{ (libro.publicado | fecha('%Y-%m-%d')) if libro.publicado }}">
+        </label>
+        <label>Valoración
+          <select name="valoracion">
+            {% for valor in range(0, 11) %}
+            <option value="{{ valor }}" {% if (libro.valoracion or 0) == valor %}selected{% endif %}>
+              {{ '—' if valor == 0 else ('★' * (valor // 2)) ~ ('½' if valor % 2 else '') }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label>Idiomas <small>códigos de tres letras: spa, eng…</small>
+        <input type="text" name="idiomas" value="{{ libro.idiomas | join(', ') }}">
+      </label>
+      <label>Etiquetas <small>separadas por comas</small>
+        <input type="text" name="etiquetas" value="{{ libro.etiquetas | join(', ') }}">
+      </label>
+      <label>ISBN
+        <input type="text" name="isbn" value="{{ libro.identificadores.get('isbn', '') }}">
+      </label>
+      <label>Otros identificadores <small>uno por línea, <code>tipo: valor</code></small>
+        <textarea name="identificadores" rows="3">{% for tipo, valor in libro.identificadores.items() %}{% if tipo != 'isbn' %}{{ tipo }}: {{ valor }}
+{% endif %}{% endfor %}</textarea>
+      </label>
+    </div>
+
+    <div>
+      <label>Descripción
+        <textarea name="descripcion" rows="14">{{ libro.descripcion or '' }}</textarea>
+      </label>
+      <div class="portada-editar">
+        <img src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}" alt="">
+        <div>
+          <label>Cambiar la portada<input type="file" name="portada" accept="image/*"></label>
+          <label class="casilla"><input type="checkbox" name="quitar_portada"> Quitar la portada</label>
+          <label class="casilla"><input type="checkbox" name="incrustar">
+            Grabar estos datos dentro de los ficheros del libro</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acciones">
+    <button class="principal">Guardar</button>
+    <a class="boton suave" href="{{ url_for('paginas.libro', id_libro=libro.id) }}">Cancelar</a>
+    <button class="suave" type="submit" form="releer">Volver a leer los datos del fichero</button>
+  </div>
+</form>
+<form id="releer" method="post"
+      action="{{ url_for('paginas.accion', id_libro=libro.id, nombre='releer-metadatos') }}"></form>
+{% endblock %}

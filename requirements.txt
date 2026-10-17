@@ -1,0 +1,5 @@
+# Vidalibre tira de muy poco a propósito: cuanto menos haya, menos se rompe
+# con el tiempo y menos memoria gasta en el NAS.
+Flask>=3.0,<4.0
+waitress>=3.0,<4.0
+Pillow>=10.0,<12.0

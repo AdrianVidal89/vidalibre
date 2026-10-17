@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Subir libros{% endblock %}
+{% block contenido %}
+<form class="formulario estrecho" method="post" enctype="multipart/form-data"
+      action="{{ url_for('paginas.subir') }}">
+  <h1>Subir libros</h1>
+  <p class="explica">Elige uno o varios ficheros. De cada uno se leen por dentro el título, el autor,
+    la serie, las etiquetas y la portada, y se coloca en la biblioteca con el mismo esquema de carpetas
+    que usa Calibre.</p>
+
+  <label class="soltar" id="zona-soltar">
+    <input type="file" name="libros" multiple required
+           accept=".epub,.mobi,.azw3,.azw,.pdf,.fb2,.lit,.pdb,.rtf,.docx,.odt,.htmlz,.html,.txt,.cbz,.cbr,.djvu">
+    <span>Arrastra aquí los libros o pulsa para elegirlos</span>
+    <small id="elegidos">EPUB, MOBI, AZW3, PDF, FB2, DOCX, CBZ… hasta {{ ajustes.subida_maxima_mb }} MB por tanda</small>
+  </label>
+
+  <div class="acciones">
+    <button class="principal">Subir a la biblioteca</button>
+  </div>
+</form>
+{% endblock %}

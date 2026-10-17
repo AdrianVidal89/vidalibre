@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% from "_rejilla.html" import rejilla %}
+{% block titulo %}{{ libro.titulo }} — {{ ajustes.titulo }}{% endblock %}
+{% block contenido %}
+<article class="ficha">
+  <div class="ficha-portada">
+    <img src="{{ url_for('paginas.portada', id_libro=libro.id) }}" alt="Portada de {{ libro.titulo }}">
+    <div class="descargas">
+      {% for fichero in libro.ficheros %}
+        <a class="boton{% if not en_disco.get(fichero.formato) %} roto{% endif %}"
+           href="{{ url_for('paginas.descargar', id_libro=libro.id, formato=fichero.formato|lower) }}">
+          Descargar {{ fichero.formato }} <small>{{ fichero.tamano | tamano }}</small>
+        </a>
+      {% else %}
+        <p class="vacio">Este libro no tiene ningún fichero.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="ficha-datos">
+    <h1>{{ libro.titulo }}</h1>
+    <p class="autores">
+      {% for autor in libro.autores %}
+        <a href="{{ url_for('paginas.inicio', autor=autor) }}">{{ autor }}</a>{{ ", " if not loop.last }}
+      {% endfor %}
+    </p>
+
+    <dl class="datos">
+      {% if libro.serie %}
+      <dt>Serie</dt><dd><a href="{{ url_for('paginas.inicio', serie=libro.serie) }}">{{ libro.serie }}</a>
+        · nº {{ libro.indice_serie | round(1) }}</dd>
+      {% endif %}
+      {% if libro.editorial %}
+      <dt>Editorial</dt><dd><a href="{{ url_for('paginas.inicio', editorial=libro.editorial) }}">{{ libro.editorial }}</a></dd>
+      {% endif %}
+      {% if libro.publicado %}<dt>Publicado</dt><dd>{{ libro.publicado | fecha }}</dd>{% endif %}
+      <dt>En la biblioteca desde</dt><dd>{{ libro.anadido | fecha }}</dd>
+      {% if libro.idiomas %}
+      <dt>Idioma</dt><dd>{% for i in libro.idiomas %}<a href="{{ url_for('paginas.inicio', idioma=i) }}">{{ i | idioma }}</a>{{ ", " if not loop.last }}{% endfor %}</dd>
+      {% endif %}
+      {% if libro.valoracion %}<dt>Valoración</dt><dd>{{ "★" * (libro.valoracion // 2) }}{{ "½" if libro.valoracion % 2 }}</dd>{% endif %}
+      {% if libro.identificadores %}
+      <dt>Identificadores</dt><dd>{% for tipo, valor in libro.identificadores.items() %}<code>{{ tipo }}: {{ valor }}</code> {% endfor %}</dd>
+      {% endif %}
+      <dt>Carpeta</dt><dd><code>{{ libro.ruta }}</code></dd>
+    </dl>
+
+    {% if libro.etiquetas %}
+    <p class="etiquetas">
+      {% for etiqueta in libro.etiquetas %}
+        <a class="chip" href="{{ url_for('paginas.inicio', etiqueta=etiqueta) }}">{{ etiqueta }}</a>
+      {% endfor %}
+    </p>
+    {% endif %}
+
+    {% if libro.descripcion %}
+    <div class="descripcion">{{ libro.descripcion | html_seguro }}</div>
+    {% endif %}
+
+    <div class="acciones">
+      <a class="boton principal" href="{{ url_for('paginas.editar', id_libro=libro.id) }}">Editar propiedades</a>
+
+      <form method="post" action="{{ url_for('paginas.convertir', id_libro=libro.id) }}" class="en-linea">
+        <select name="formato">
+          {% for formato in formatos_salida %}
+          <option value="{{ formato }}">{{ formato | upper }}</option>
+          {% endfor %}
+        </select>
+        <select name="destino">
+          <option value="biblioteca">guardarlo en este libro</option>
+          <option value="descarga">descargármelo</option>
+          {% if ajustes.modo == 'local' %}<option value="carpeta">dejarlo en una carpeta</option>{% endif %}
+        </select>
+        {% if ajustes.modo == 'local' %}
+        <input type="text" name="carpeta" placeholder="carpeta de destino"
+               value="{{ ajustes.carpeta_descargas }}" size="18">
+        {% endif %}
+        <button {% if not hay_motor %}disabled title="Falta Calibre"{% endif %}>Convertir</button>
+      </form>
+
+      {% if kindles %}
+      <form method="post" action="{{ url_for('paginas.enviar_al_aparato') }}" class="en-linea">
+        <input type="hidden" name="ids" value="{{ libro.id }}">
+        <select name="kindle">
+          {% for kindle in kindles %}<option value="{{ kindle }}">{{ kindle.name }}</option>{% endfor %}
+        </select>
+        <select name="formato"><option value="azw3">AZW3</option><option value="mobi">MOBI</option></select>
+        <button>Enviar al Kindle</button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('paginas.accion', id_libro=libro.id, nombre='portada-del-fichero') }}">
+        <button class="suave">Sacar la portada del libro</button>
+      </form>
+      <form method="post" action="{{ url_for('paginas.accion', id_libro=libro.id, nombre='incrustar') }}">
+        <button class="suave" title="Escribe título, autor y portada dentro de los ficheros">Grabar datos en los ficheros</button>
+      </form>
+      <form method="post" action="{{ url_for('paginas.accion', id_libro=libro.id, nombre='borrar') }}"
+            data-confirmar="Se borra «{{ libro.titulo }}» entero, con sus ficheros. ¿Seguro?">
+        <button class="peligro">Borrar el libro</button>
+      </form>
+    </div>
+
+    <details class="mas">
+      <summary>Más ficheros de este libro</summary>
+      <form method="post" enctype="multipart/form-data"
+            action="{{ url_for('paginas.accion', id_libro=libro.id, nombre='anadir-formato') }}" class="en-linea">
+        <input type="file" name="fichero" required>
+        <button>Añadir este formato al libro</button>
+      </form>
+      <ul class="formatos-lista">
+        {% for fichero in libro.ficheros %}
+        <li>
+          <b>{{ fichero.formato }}</b> · {{ fichero.tamano | tamano }} · <code>{{ fichero.nombre }}</code>
+          {% if libro.ficheros | length > 1 %}
+          <form method="post" action="{{ url_for('paginas.accion', id_libro=libro.id, nombre='borrar-formato') }}"
+                data-confirmar="¿Quitar el {{ fichero.formato }} de este libro?">
+            <input type="hidden" name="formato" value="{{ fichero.formato }}">
+            <button class="peligro pequeno">quitar</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </details>
+  </div>
+</article>
+
+{% if hermanos %}
+<section class="seccion">
+  <h2>Más de «{{ libro.serie }}»</h2>
+  {{ rejilla(hermanos) }}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block titulo %}Sin biblioteca{% endblock %}
+{% block contenido %}
+<h1>No encuentro la biblioteca</h1>
+<p class="explica">{{ error }}</p>
+<p class="explica">{{ nombre_app }} espera encontrar la biblioteca de Calibre (la carpeta con el fichero
+  <code>metadata.db</code>) en <code>{{ ajustes.biblioteca }}</code>.</p>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% macro rejilla(libros) %}
+<ul class="rejilla">
+  {% for libro in libros %}
+  <li class="tarjeta">
+    <a href="{{ url_for('paginas.libro', id_libro=libro.id) }}">
+      <img loading="lazy" src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}"
+           alt="Portada de {{ libro.titulo }}">
+      <span class="titulo">{{ libro.titulo }}</span>
+      <span class="autor">{{ libro.autores | join(', ') }}</span>
+      <span class="formatos">
+        {% for formato in libro.formatos %}<i>{{ formato }}</i>{% endfor %}
+        {% if libro.serie %}<em title="{{ libro.serie }}">{{ libro.serie }} · {{ libro.indice_serie | round(1) }}</em>{% endif %}
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

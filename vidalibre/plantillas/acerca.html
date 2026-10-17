@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Acerca de {{ nombre_app }}{% endblock %}
+{% block contenido %}
+<div class="acerca">
+  <img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="96" height="96">
+  <h1>{{ nombre_app }} {{ version }}</h1>
+  <p class="explica">La biblioteca de libros de casa. Lee y escribe la misma biblioteca de Calibre de
+    siempre, así que nada de lo que hay aquí deja de abrirse con Calibre.</p>
+  <dl class="datos">
+    <dt>Biblioteca</dt><dd><code>{{ ajustes.biblioteca }}</code></dd>
+    <dt>Libros</dt><dd>{{ resumen.libros }} · {{ resumen.ficheros }} ficheros · {{ resumen.bytes | tamano }}</dd>
+    <dt>Autores</dt><dd>{{ resumen.autores }}</dd>
+    <dt>Motor de conversión</dt><dd>{% if motor_version %}Calibre {{ motor_version }}{% else %}<b>no disponible</b>{% endif %}</dd>
+    <dt>Modo</dt><dd>{{ ajustes.modo }}{% if ajustes.solo_lectura %} · solo lectura{% endif %}</dd>
+    {% if espacio %}<dt>Espacio libre</dt><dd>{{ espacio | tamano }}</dd>{% endif %}
+    <dt>Catálogo OPDS</dt><dd><a href="{{ url_for('opds.raiz') }}">{{ url_for('opds.raiz', _external=True) }}</a></dd>
+  </dl>
+</div>
+{% endblock %}

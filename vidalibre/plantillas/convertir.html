@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titulo %}Convertir libros{% endblock %}
+{% block contenido %}
+<form class="formulario estrecho" method="post" action="{{ url_for('paginas.convertir_en_bloque') }}">
+  <h1>Convertir varios libros</h1>
+  <p class="explica">El motor es el mismo de siempre (el de Calibre): MOBI sale compatible con los Kindle
+    viejos y los nuevos, los PDF entran con las heurísticas puestas y el Markdown sale limpio y con sus
+    propiedades para Obsidian. El formato nuevo se queda <b>dentro del libro</b>: un libro puede tener
+    EPUB, AZW3 y MOBI a la vez.</p>
+
+  <div class="pareja">
+    <label>Convertir a
+      <select name="formato" id="formato-destino">
+        {% for formato in formatos_salida %}<option value="{{ formato }}">{{ formato | upper }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Qué hago con el resultado
+      <select name="destino">
+        <option value="biblioteca">guardarlo en cada libro</option>
+        {% if ajustes.modo == 'local' %}<option value="carpeta">dejarlo en una carpeta</option>{% endif %}
+      </select>
+    </label>
+  </div>
+  {% if ajustes.modo == 'local' %}
+  <label>Carpeta de destino <small>solo si has elegido «dejarlo en una carpeta»</small>
+    <input type="text" name="carpeta" value="{{ ajustes.carpeta_descargas }}" placeholder="/home/adrian/Descargas">
+  </label>
+  {% endif %}
+
+  <fieldset>
+    <legend>Qué libros</legend>
+    <label>Buscar <input type="text" name="q" value="{{ filtros.busqueda or '' }}" placeholder="título, autor…"></label>
+    <div class="pareja">
+      <label>Autor
+        <select name="autor"><option value="">— todos —</option>
+          {% for a in categorias_autor %}<option value="{{ a.nombre }}">{{ a.nombre }} ({{ a.libros }})</option>{% endfor %}
+        </select>
+      </label>
+      <label>Serie
+        <select name="serie"><option value="">— todas —</option>
+          {% for s in categorias_serie %}<option value="{{ s.nombre }}">{{ s.nombre }} ({{ s.libros }})</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="pareja">
+      <label>Etiqueta
+        <select name="etiqueta"><option value="">— todas —</option>
+          {% for e in categorias_etiqueta %}<option value="{{ e.nombre }}">{{ e.nombre }} ({{ e.libros }})</option>{% endfor %}
+        </select>
+      </label>
+      <label>Que tengan este formato de partida
+        <select name="origen_formato"><option value="">— el mejor que haya —</option>
+          {% for f in formatos %}<option value="{{ f.nombre }}">{{ f.nombre }} ({{ f.libros }})</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <label class="casilla"><input type="checkbox" name="solo_sin_formato" checked>
+      Saltarse los que ya tienen ese formato</label>
+  </fieldset>
+
+  <div class="acciones">
+    <button class="principal">Poner en cola</button>
+    <span class="explica">Se convierten de uno en uno para no ahogar la memoria del NAS.</span>
+  </div>
+</form>
+{% endblock %}
