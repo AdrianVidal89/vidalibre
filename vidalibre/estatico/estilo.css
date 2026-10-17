@@ -71,6 +71,13 @@ pre { background: var(--tinta); color: var(--papel); padding: 12px; border-radiu
   background: var(--acento); animation: latir 1.4s infinite; vertical-align: middle; }
 @keyframes latir { 50% { opacity: .25; } }
 
+.cinta {
+  margin: 0; padding: 8px 18px; text-align: center;
+  background: var(--panel-alto); border-bottom: 1px solid var(--acento-apagado);
+  color: var(--suave); font-size: .82rem;
+}
+.cinta a { color: var(--acento); }
+
 /* ------------------------------------------------------------------ avisos */
 .avisos { max-width: 1240px; margin: 12px auto 0; padding: 0 18px; }
 .aviso {
@@ -241,3 +248,113 @@ legend { color: var(--acento); font-size: .85rem; padding: 0 6px; }
 .pie { text-align: center; color: var(--suave); font-size: .78rem; padding: 26px 18px 40px;
   border-top: 1px solid var(--borde); }
 .pie a { color: var(--suave); }
+
+/* ===================================================================== móvil
+   El iPhone manda aquí: barra de navegación abajo (donde llega el pulgar),
+   portadas en tres columnas, nada de letra de 14 px y sitio reservado para la
+   isla dinámica y la barra de gestos (los `safe-area`). */
+
+/* Progreso de lectura sobre la portada, en la rejilla. */
+.cubierta { position: relative; display: block; }
+.leido {
+  position: absolute; left: 6px; right: 6px; bottom: 6px; height: 4px;
+  border-radius: 99px; background: rgba(0, 0, 0, .45); overflow: hidden;
+}
+.leido i { display: block; height: 100%; background: var(--acento); }
+.boton.grande { font-size: .98rem; padding: 12px 22px; }
+.boton.grande small { opacity: .75; }
+
+@media (max-width: 760px) {
+  body { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+  main { padding: 14px 13px 24px; }
+
+  .cabecera {
+    gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 9px) 13px 9px;
+    flex-wrap: wrap;
+    /* Sin esto el menú de abajo no se queda abajo: un `backdrop-filter` en el
+       padre hace que lo fijo se fije respecto a él y no respecto a la pantalla.
+       Es el fallo más traicionero de todo el CSS de esta aplicación. */
+    backdrop-filter: none;
+  }
+  .marca img { width: 32px; height: 32px; }
+  .marca strong { font-size: 1rem; }
+  .marca small { display: none; }
+  .buscador { order: 3; flex: 1 1 100%; }
+  .buscador input { font-size: 16px; }   /* menos de 16 y iOS hace zoom al tocar */
+  .buscador button { display: none; }    /* en el móvil se busca con el teclado */
+
+  /* El menú deja de ser una fila de enlaces y se convierte en la barra de
+     abajo, con icono y nombre, como cualquier app del teléfono. */
+  .menu {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 30;
+    display: flex;
+    justify-content: space-around;
+    gap: 0;
+    padding: 6px 4px calc(env(safe-area-inset-bottom) + 4px);
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--borde);
+  }
+  .menu a {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 5px 2px; min-height: 50px; border-radius: 12px;
+    font-size: .64rem; letter-spacing: .01em; position: relative;
+  }
+  .menu a i { font-size: 1.22rem; font-style: normal; line-height: 1; }
+  .menu a.activo { background: transparent; color: var(--acento); font-weight: 600; }
+  .menu a .punto { position: absolute; top: 4px; right: 50%; margin-right: -16px; }
+
+  .rejilla { gap: 16px 11px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .tarjeta .titulo { font-size: .8rem; }
+  .tarjeta .autor { font-size: .72rem; }
+  .tarjeta .formatos { display: none; }
+
+  .barra { gap: 10px; }
+  .ordenar { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .ordenar::-webkit-scrollbar { display: none; }
+  .ordenar select { flex: 0 0 auto; }
+  .chip { padding: 7px 13px; }
+
+  /* Ficha: portada centrada y botones de ancho completo, que se puedan dar
+     con el pulgar sin apuntar. */
+  .ficha { gap: 20px; }
+  .ficha-portada { max-width: 230px; margin: 0 auto; }
+  .ficha-datos h1 { font-size: 1.32rem; }
+  .datos { grid-template-columns: 1fr; gap: 2px 0; }
+  .datos dt { margin-top: 8px; font-size: .78rem; }
+  .acciones { flex-direction: column; align-items: stretch; }
+  .acciones > * { width: 100%; }
+  .acciones button, .acciones .boton { justify-content: center; min-height: 46px; }
+  .en-linea { border-radius: 16px; padding: 10px; flex-direction: column; align-items: stretch; }
+  .en-linea select, .en-linea input, .en-linea button { width: 100%; min-height: 44px; }
+  .descargas .boton { justify-content: center; min-height: 46px; }
+
+  .formulario { padding: 16px; border-radius: 16px; }
+  .dos-columnas, .pareja { grid-template-columns: 1fr; }
+  label input, label select, label textarea, input[type=search] { font-size: 16px; min-height: 44px; }
+  button, .boton { min-height: 44px; }
+  .soltar { padding: 34px 16px; }
+  .estantes { grid-template-columns: 1fr; }
+  .estantes a { min-height: 48px; align-items: center; }
+  .elegir { grid-template-columns: 1fr; max-height: none; }
+  .paginacion { gap: 12px; flex-wrap: wrap; }
+  .pie { padding-bottom: 24px; }
+  .trabajo { border-radius: 14px; }
+}
+
+/* Pantallas muy estrechas (iPhone mini / SE): dos columnas y nada más. */
+@media (max-width: 380px) {
+  .rejilla { grid-template-columns: repeat(2, 1fr); }
+  .menu a span { font-size: .6rem; }
+}
+
+/* Cuando se abre desde el icono de la pantalla de inicio, el navegador no
+   pinta sus barras: hay que dejar hueco arriba a la hora y la batería. */
+@media (display-mode: standalone) {
+  .cabecera { padding-top: calc(env(safe-area-inset-top) + 12px); }
+}

@@ -11,7 +11,12 @@ FROM python:3.12-slim-bookworm
 
 ARG CALIBRE_VERSION=9.14.0
 
-ENV PYTHONUNBUFFERED=1 \
+# MALLOC_ARENA_MAX es el ajuste que más memoria ahorra en un servicio Python
+# con hilos: sin él, la biblioteca de C abre una reserva por hilo y por núcleo,
+# y la aplicación aparenta ocupar el doble de lo que usa.
+ENV MALLOC_ARENA_MAX=2 \
+    MALLOC_TRIM_THRESHOLD_=131072 \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH="/opt/calibre:${PATH}" \

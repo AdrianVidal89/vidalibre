@@ -283,6 +283,25 @@ def _convertir_markdown(origen, destino, metadatos, extra):
 
 
 # ------------------------------------------------------- cola de trabajos
+def soltar_memoria():
+    """Devuelve al sistema la memoria que ya no se usa.
+
+    Python suelta la memoria de sus objetos, pero la biblioteca de C del
+    sistema se la queda reservada «por si acaso», y en un servidor que corre
+    meses eso se nota: la aplicación aparenta ocupar el triple de lo que de
+    verdad necesita. `malloc_trim` la devuelve de verdad. Se llama al terminar
+    cada trabajo, que es justo cuando se acaba de liberar lo gordo.
+    """
+    import ctypes
+    import gc
+
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass    # en otros sistemas no existe; no pasa nada
+
+
 class Trabajo:
     """Un trabajo de la cola (una conversión, un envío al Kindle, una subida)."""
 
@@ -385,6 +404,7 @@ class ColaTrabajos:
                 trabajo.anotar(f"Error: {ex}")
             finally:
                 trabajo.terminado = time.time()
+                soltar_memoria()
 
     def trabajo(self, id_trabajo):
         return self._trabajos.get(id_trabajo)

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}{{ libro.titulo }}{% endblock %}
+{% block contenido %}
+<div class="visor-pdf">
+  <p class="explica">Un PDF son páginas fijas: se abre con el visor del navegador, que para esto
+    funciona mejor que cualquier cosa montada encima. Si lo quieres con letra que se adapte a la
+    pantalla, conviértelo a EPUB desde su ficha (quedará guardado en el mismo libro).</p>
+  <object data="{{ url_for('paginas.descargar', id_libro=libro.id, formato='pdf') }}#view=FitH"
+          type="application/pdf">
+    <p class="explica">Tu navegador no sabe enseñar PDFs aquí dentro.
+      <a href="{{ url_for('paginas.descargar', id_libro=libro.id, formato='pdf') }}">Descárgalo</a>.</p>
+  </object>
+</div>
+{% endblock %}

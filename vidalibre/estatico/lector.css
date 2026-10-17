@@ -1,0 +1,166 @@
+/* El lector a pantalla completa: barras, paneles y marco del libro.
+   El color de las barras sigue al del papel elegido, para que la pantalla
+   entera sea de un solo color y no moleste de noche. */
+
+* { box-sizing: border-box; }
+
+body.lector {
+  margin: 0;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--papel);
+  color: var(--tinta);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  --papel: #ffffff; --tinta: #1b1b1b; --apagado: #767169; --acento: #9a5b21;
+  --borde: rgba(127, 127, 127, .22);
+}
+body.lector[data-tema="sepia"] { --papel: #faf0dc; --tinta: #4a3d2c; --apagado: #8a7a62; --acento: #8a5118; }
+body.lector[data-tema="noche"] { --papel: #1e2024; --tinta: #cdc9c2; --apagado: #8b8880; --acento: #e0a45c; }
+body.lector[data-tema="negro"] { --papel: #000000; --tinta: #b4b1ab; --apagado: #726f6a; --acento: #d9a05f; }
+
+#marco {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--papel);
+}
+
+/* ------------------------------------------------------------------ barras */
+.barra {
+  position: fixed;
+  left: 0; right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--papel);
+  color: var(--tinta);
+  transition: transform .22s ease, opacity .22s ease;
+}
+.barra-arriba {
+  top: 0;
+  padding: calc(env(safe-area-inset-top) + 7px) calc(env(safe-area-inset-right) + 8px) 7px
+           calc(env(safe-area-inset-left) + 8px);
+  border-bottom: 1px solid var(--borde);
+}
+.barra-abajo {
+  bottom: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 7px calc(env(safe-area-inset-right) + 14px)
+           calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px);
+  border-top: 1px solid var(--borde);
+}
+body.sin-barras .barra-arriba { transform: translateY(-110%); opacity: 0; }
+body.sin-barras .barra-abajo { transform: translateY(110%); opacity: 0; }
+
+.icono {
+  flex: 0 0 auto;
+  min-width: 42px; height: 42px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: var(--tinta);
+  font-size: 22px; line-height: 1; border-radius: 12px;
+  text-decoration: none; cursor: pointer;
+}
+.icono:active { background: var(--borde); }
+.icono.letras { font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+
+.titulo-barra { flex: 1; min-width: 0; text-align: center; }
+.titulo-barra b {
+  display: block; font-size: .92rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.titulo-barra small {
+  display: block; font-size: .72rem; color: var(--apagado);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.progreso-lectura { height: 3px; border-radius: 99px; background: var(--borde); overflow: hidden; }
+.progreso-lectura i { display: block; height: 100%; width: 0; background: var(--acento); transition: width .25s; }
+.estado { display: flex; justify-content: space-between; gap: 10px; font-size: .74rem; color: var(--apagado); }
+
+/* El atributo `hidden` tiene menos fuerza que un `display` puesto en una
+   clase: sin esto, los paneles salen abiertos todos a la vez. */
+[hidden] { display: none !important; }
+
+/* ----------------------------------------------------------------- paneles */
+.velo { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .38); }
+.panel {
+  position: fixed; z-index: 30;
+  top: 0; right: 0; bottom: 0;
+  width: min(430px, 88vw);
+  background: var(--papel); color: var(--tinta);
+  border-left: 1px solid var(--borde);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, .25);
+  display: flex; flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 8px) 14px calc(env(safe-area-inset-bottom) + 14px);
+  animation: entrar .2s ease;
+}
+@keyframes entrar { from { transform: translateX(14px); opacity: .4; } }
+.panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.panel header b { font-size: 1rem; }
+
+#panel-ajustes { overflow-y: auto; }
+.ajuste { padding: 11px 2px; border-top: 1px solid var(--borde); }
+.ajuste > span { display: block; font-size: .76rem; color: var(--apagado); margin-bottom: 7px;
+  text-transform: uppercase; letter-spacing: .05em; }
+.botonera { display: flex; gap: 6px; flex-wrap: wrap; }
+.botonera button, .botonera output {
+  flex: 1 1 auto; min-width: 58px; min-height: 42px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--borde); border-radius: 11px;
+  background: transparent; color: var(--tinta);
+  font: inherit; font-size: .88rem; cursor: pointer;
+}
+.botonera button.elegido { border-color: var(--acento); color: var(--acento); font-weight: 600; }
+.botonera output { flex: 0 0 56px; font-variant-numeric: tabular-nums; }
+.temas button.tema-claro { background: #fff; color: #1b1b1b; }
+.temas button.tema-sepia { background: #faf0dc; color: #4a3d2c; }
+.temas button.tema-noche { background: #1e2024; color: #cdc9c2; }
+.temas button.tema-negro { background: #000; color: #b4b1ab; }
+.nota { font-size: .76rem; color: var(--apagado); margin: 14px 2px 0; }
+
+.indice, .resultados-busqueda { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.indice li button, .resultados-busqueda li button {
+  display: block; width: 100%; text-align: left;
+  padding: 12px 10px; min-height: 46px;
+  border: 0; border-bottom: 1px solid var(--borde);
+  background: transparent; color: var(--tinta);
+  font: inherit; font-size: .92rem; cursor: pointer;
+}
+.indice li button:active, .resultados-busqueda li button:active { background: var(--borde); }
+.resultados-busqueda li button b { display: block; font-size: .78rem; color: var(--acento); margin-bottom: 3px; }
+.resultados-busqueda li button span { display: block; font-size: .85rem; color: var(--apagado); line-height: 1.45; }
+.vacio { padding: 16px 10px; color: var(--apagado); font-size: .88rem; }
+
+#forma-buscar { display: flex; gap: 6px; margin-bottom: 10px; }
+#forma-buscar input {
+  flex: 1; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--borde); border-radius: 11px;
+  background: transparent; color: var(--tinta); font: inherit; font-size: 16px;
+}
+#forma-buscar button {
+  min-height: 44px; padding: 0 16px; border-radius: 11px;
+  border: 1px solid var(--acento); background: transparent; color: var(--acento);
+  font: inherit; cursor: pointer;
+}
+
+/* --------------------------------------------------------------- cargando */
+.cargando { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center;
+  background: var(--papel); }
+.cargando span {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid var(--borde); border-top-color: var(--acento);
+  animation: girar .7s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------- visor PDF */
+.visor-pdf object { width: 100%; height: 78vh; border: 1px solid var(--borde); border-radius: 12px; }

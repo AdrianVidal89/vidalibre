@@ -98,6 +98,7 @@ class Catalogo:
     def __init__(self, raiz):
         self.raiz = Path(raiz)
         self.bd = self.raiz / "metadata.db"
+        self._escritura = None
 
     # ---------------------------------------------------------------- conexión
     @contextmanager
@@ -125,6 +126,31 @@ class Catalogo:
                 cx.execute("ROLLBACK")
                 raise
             cx.execute("COMMIT")
+
+    def escritura_posible(self, volver_a_probar=False):
+        """¿Se puede escribir en el catálogo desde aquí?
+
+        No basta con mirar los permisos del fichero: sobre una carpeta de red
+        (SMB) los permisos dicen que sí y luego SQLite no puede echar sus
+        cerrojos. La única comprobación que vale es intentar una escritura de
+        verdad y deshacerla.
+        """
+        if self._escritura is not None and not volver_a_probar:
+            return self._escritura
+        try:
+            with self.conectar() as cx:
+                cx.execute("BEGIN IMMEDIATE")
+                try:
+                    cx.execute(
+                        "UPDATE books SET last_modified = last_modified "
+                        "WHERE id = (SELECT MIN(id) FROM books)"
+                    )
+                finally:
+                    cx.execute("ROLLBACK")
+            self._escritura = True
+        except Exception:
+            self._escritura = False
+        return self._escritura
 
     def comprobar(self) -> dict:
         with self.conectar() as cx:

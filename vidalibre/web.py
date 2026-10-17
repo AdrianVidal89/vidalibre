@@ -11,7 +11,8 @@ from pathlib import Path
 from flask import (Blueprint, Response, abort, current_app, flash, jsonify,
                    redirect, render_template, request, send_file, url_for)
 
-from . import NOMBRE, __version__, dispositivo, ficheros, motor
+from . import (NOMBRE, __version__, dispositivo, ficheros, lector, motor,
+               puede_escribir)
 from .catalogo import ErrorCatalogo
 from .motor import Trabajo
 
@@ -68,6 +69,31 @@ def encolar(trabajo, tarea):
 def comprobar_escritura():
     if ajustes().solo_lectura:
         abort(403, "Vidalibre está en modo de solo lectura.")
+
+
+def puente():
+    return current_app.config["PUENTE"]
+
+
+def catalogo_escribible():
+    """¿Puede ESTA copia tocar el catálogo, o hay que pedírselo al NAS?
+
+    Si hay una biblioteca de casa configurada, **siempre** escribe ella, aunque
+    desde aquí pareciera posible. No es manía: el catálogo está en una carpeta
+    de red y los cerrojos no cruzan bien. Probándolo salió exactamente eso —
+    el portátil intentó apuntar algo justo mientras el NAS convertía un libro y
+    se encontró la base de datos bloqueada. Con un solo escritor, eso no pasa.
+    """
+    return puede_escribir(ajustes(), catalogo())
+
+
+def avisar_de_puente():
+    """Mensaje único para lo que no se puede hacer desde el portátil."""
+    enlace = ajustes().servidor or "la biblioteca de casa"
+    flash(
+        "Esto se hace en la biblioteca de casa: desde aquí la carpeta está en red y "
+        f"el catálogo no se puede tocar sin riesgo. Ábrela en {enlace}.", "aviso",
+    )
 
 
 def lista_de(texto, separador=","):
@@ -153,7 +179,7 @@ def _filtro_html_seguro(texto):
     return Markup(texto)
 
 
-@paginas.context_processor
+@paginas.app_context_processor
 def _contexto():
     return {
         "ajustes": ajustes(),
@@ -162,6 +188,8 @@ def _contexto():
         "categorias": CATEGORIAS,
         "formatos_salida": ficheros.FORMATOS_SALIDA,
         "trabajos_activos": len(cola().activos()),
+        "escribe_catalogo": catalogo_escribible(),
+        "servidor_remoto": ajustes().servidor,
     }
 
 
@@ -200,6 +228,7 @@ def inicio():
     return render_template(
         "biblioteca.html",
         chips=chips,
+        lecturas=lector.posiciones_de_libros(catalogo(), [l["id"] for l in libros]),
         libros=libros,
         total=total,
         pagina=pagina,
@@ -241,6 +270,7 @@ def libro(id_libro):
     return render_template(
         "libro.html",
         libro=datos,
+        lectura=lector.leer_posicion(catalogo(), id_libro, "EPUB"),
         hermanos=hermanos,
         hay_motor=motor.hay_motor(),
         kindles=dispositivo.detectar() if ajustes().con_dispositivo else [],
@@ -283,10 +313,15 @@ def _miniatura(datos, ruta_portada, ancho=320):
 
         carpeta.mkdir(parents=True, exist_ok=True)
         imagen = Image.open(str(ruta_portada))
+        # `draft` le dice al descodificador de JPEG que saque la imagen ya
+        # reducida en vez de montarla entera en memoria para luego encogerla:
+        # una portada de 1600x2400 pasa de ocupar 11 MB a menos de 1 MB. Con
+        # 146 portadas en pantalla, es la diferencia que se nota en el NAS.
+        imagen.draft("RGB", (ancho * 2, ancho * 3))
         if imagen.mode not in ("RGB", "L"):
             imagen = imagen.convert("RGB")
         if imagen.width > ancho:
-            alto = int(imagen.height * ancho / imagen.width)
+            alto = max(1, int(imagen.height * ancho / imagen.width))
             imagen = imagen.resize((ancho, alto), Image.LANCZOS)
         imagen.save(str(destino), "JPEG", quality=82, optimize=True)
         # Las miniaturas viejas del mismo libro ya no sirven.
@@ -348,6 +383,9 @@ def editar(id_libro):
         return render_template("editar.html", libro=datos)
 
     comprobar_escritura()
+    if not catalogo_escribible():
+        avisar_de_puente()
+        return redirect(url_for("paginas.libro", id_libro=id_libro))
     formulario = request.form
     identificadores = {}
     for linea in lista_de(formulario.get("identificadores", ""), "\n"):
@@ -395,6 +433,11 @@ def accion(id_libro, nombre):
     datos = catalogo().libro(id_libro)
     if not datos:
         abort(404)
+    # Añadir un formato sí sabe apañárselas por su cuenta (deja el fichero y
+    # se lo dice al NAS); lo demás toca el catálogo y no se puede desde aquí.
+    if not catalogo_escribible() and nombre != "anadir-formato":
+        avisar_de_puente()
+        return redirect(url_for("paginas.libro", id_libro=id_libro))
 
     if nombre == "portada-del-fichero":
         if biblioteca().refrescar_portada_desde_fichero(id_libro):
@@ -451,6 +494,25 @@ def subir():
     if not subidos:
         flash("No has elegido ningún libro.", "aviso")
         return redirect(url_for("paginas.subir"))
+
+    # Desde el portátil no se puede escribir en el catálogo: el libro se manda
+    # a la biblioteca de casa, que lo coloca y lo apunta.
+    if not catalogo_escribible():
+        if not puente():
+            avisar_de_puente()
+            return redirect(url_for("paginas.subir"))
+        bien = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            for subida in subidos:
+                try:
+                    ruta, _extension = ficheros.recibir_subida(subida, Path(tmp))
+                    puente().subir_libro(ruta)
+                    bien += 1
+                except Exception as ex:
+                    flash(f"{subida.filename}: {ex}", "error")
+        if bien:
+            flash(f"{bien} libro(s) enviados a la biblioteca de casa.", "ok")
+        return redirect(url_for("paginas.inicio", orden="reciente"))
 
     nuevos, fallos, avisos = [], [], []
     with tempfile.TemporaryDirectory() as tmp:
@@ -695,9 +757,13 @@ def enviar_al_aparato():
                 continue
             trabajo.anotar(f"({indice}/{len(ids)}) {datos['titulo']}")
             try:
+                # El formato pedido es el formato pedido: si se eligió MOBI es
+                # porque el aparato es de los viejos, y esos no leen AZW3.
+                # Antes se aprovechaba cualquier formato que el Kindle
+                # entendiera y se mandaba un AZW3 a un Kindle que no podía
+                # abrirlo.
                 _formato, ruta, convertido = biblioteca().asegurar_formato(
-                    id_libro, [formato] + [f for f in dispositivo.FORMATOS_USB if f != formato],
-                    trabajo=trabajo,
+                    id_libro, [formato], trabajo=trabajo,
                 )
                 origen_formato, origen_ruta = biblioteca().mejor_origen(datos)
                 destino, con_portada = dispositivo.copiar_al_aparato(
@@ -739,6 +805,63 @@ def portadas_del_aparato():
     return redirect(url_for("paginas.trabajos", destacado=trabajo.id))
 
 
+# ------------------------------------------------------------------- la API
+# Dos puertas para la copia del portátil, que no puede escribir en el catálogo
+# por estar la biblioteca en una carpeta de red. Ver `puente.py`.
+@paginas.route("/api/posicion", methods=["POST"])
+def api_posicion():
+    from . import lector
+
+    comprobar_escritura()
+    cuerpo = request.get_json(silent=True) or {}
+    id_libro = int(cuerpo.get("libro") or 0)
+    if not catalogo().libro(id_libro):
+        abort(404)
+    lector.guardar_posicion(
+        catalogo(), id_libro, (cuerpo.get("formato") or "EPUB"),
+        str(cuerpo.get("posicion") or "")[:400], cuerpo.get("fraccion") or 0,
+    )
+    return jsonify({"guardado": True})
+
+
+@paginas.route("/api/registrar-formato", methods=["POST"])
+def api_registrar_formato():
+    """Apunta en el catálogo un fichero que ya está en la carpeta del libro.
+
+    Lo usa el portátil después de convertir: el fichero lo deja él en la
+    carpeta compartida (eso sí funciona por red), y el catálogo lo escribe
+    quien manda, que es el NAS.
+    """
+    comprobar_escritura()
+    cuerpo = request.get_json(silent=True) or {}
+    id_libro = int(cuerpo.get("libro") or 0)
+    formato = (cuerpo.get("formato") or "").lower().lstrip(".")
+    datos = catalogo().libro(id_libro)
+    if not datos or not formato:
+        abort(404)
+
+    carpeta = catalogo().raiz / datos["ruta"]
+    base = ficheros.nombre_base(datos["titulo"], (datos["autores"] or ["x"])[0])
+    fichero = carpeta / f"{base}.{formato}"
+    if not fichero.is_file():
+        # Puede que el nombre venga de una edición anterior: se busca por
+        # extensión dentro de la carpeta del libro.
+        candidatos = sorted(carpeta.glob(f"*.{formato}")) if carpeta.is_dir() else []
+        if not candidatos:
+            return jsonify({"registrado": False,
+                            "error": "No encuentro ese fichero en la carpeta del libro."}), 404
+        fichero = candidatos[0]
+
+    with catalogo().escribir() as cx:
+        catalogo().anadir_formato(cx, id_libro, formato, fichero.stem, fichero.stat().st_size)
+    actualizado = catalogo().libro(id_libro)
+    try:
+        ficheros.escribir_opf(catalogo().raiz, actualizado, f"{NOMBRE} ({__version__})")
+    except OSError:
+        pass
+    return jsonify({"registrado": True, "formato": formato.upper()})
+
+
 # --------------------------------------------------------------------- estado
 @paginas.route("/estado")
 def estado():
@@ -751,6 +874,8 @@ def estado():
         "aplicacion": NOMBRE,
         "version": __version__,
         "modo": ajustes().modo,
+        "escribe_catalogo": catalogo_escribible() if bien else False,
+        "servidor": ajustes().servidor or None,
         "biblioteca": str(ajustes().biblioteca),
         "motor": motor.version_calibre(),
         "trabajos": len(cola().activos()),

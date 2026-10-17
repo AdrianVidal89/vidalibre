@@ -46,6 +46,9 @@ class Ajustes:
         self.solo_lectura = _bool(entorno.get("VIDALIBRE_SOLO_LECTURA"))
         self.por_pagina = int(entorno.get("VIDALIBRE_POR_PAGINA", "48"))
         self.carpeta_descargas = entorno.get("VIDALIBRE_DESCARGAS", "")
+        # La biblioteca de casa, para cuando esta copia no puede escribir en el
+        # catálogo (carpeta de red). Ver `puente.py`.
+        self.servidor = entorno.get("VIDALIBRE_SERVIDOR", "").strip().rstrip("/")
         self.subida_maxima_mb = int(entorno.get("VIDALIBRE_SUBIDA_MAXIMA_MB", "600"))
 
     @property
@@ -85,6 +88,20 @@ def _barrer_temporales(ajustes, dias=2):
         pass
 
 
+def puede_escribir(ajustes, catalogo):
+    """¿Escribe esta copia en el catálogo, o se lo pide a la biblioteca de casa?
+
+    Si hay un servidor configurado, **siempre** escribe él. No es manía: el
+    catálogo vive en una carpeta de red y los cerrojos de SQLite no cruzan bien
+    por ahí. Probándolo pasó justo eso: el portátil intentó apuntar algo
+    mientras el NAS convertía un libro y se encontró la base de datos
+    bloqueada. Con un solo escritor, eso no ocurre.
+    """
+    if getattr(ajustes, "servidor", ""):
+        return False
+    return catalogo.escritura_posible()
+
+
 def crear_app(ajustes=None):
     from flask import Flask
 
@@ -114,11 +131,17 @@ def crear_app(ajustes=None):
 
     catalogo = Catalogo(ajustes.biblioteca)
     app.config["CATALOGO"] = catalogo
-    app.config["BIBLIOTECA"] = Biblioteca(catalogo, firma=f"{NOMBRE} ({__version__})")
+    from .puente import Puente
+
+    app.config["PUENTE"] = Puente(ajustes.servidor)
+    app.config["BIBLIOTECA"] = Biblioteca(
+        catalogo, firma=f"{NOMBRE} ({__version__})", puente=app.config["PUENTE"]
+    )
     app.config["COLA"] = ColaTrabajos()
 
-    from . import opds, web
+    from . import lector_web, opds, web
 
     app.register_blueprint(web.paginas)
+    app.register_blueprint(lector_web.paginas_lector)
     app.register_blueprint(opds.catalogo_opds)
     return app

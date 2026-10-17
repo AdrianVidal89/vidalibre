@@ -23,10 +23,14 @@ PREFERENCIA_ORIGEN = ["EPUB", "AZW3", "MOBI", "AZW", "FB2", "DOCX", "HTMLZ", "HT
 
 
 class Biblioteca:
-    def __init__(self, catalogo, firma="Vidalibre"):
+    def __init__(self, catalogo, firma="Vidalibre", puente=None):
         self.catalogo = catalogo
         self.raiz = catalogo.raiz
         self.firma = firma
+        # Cuando la biblioteca está en una carpeta de red, esta copia no puede
+        # escribir en el catálogo: deja el fichero en su sitio y le pide al NAS
+        # que lo apunte. Ver `puente.py`.
+        self.puente = puente
 
     # ------------------------------------------------------------------ ayudas
     def _opf(self, id_libro):
@@ -147,6 +151,16 @@ class Biblioteca:
                 shutil.move(str(ruta_origen), str(destino))
             else:
                 shutil.copy2(str(ruta_origen), str(destino))
+
+        if self.puente or not self.catalogo.escritura_posible():
+            if not self.puente:
+                raise ErrorCatalogo(
+                    "El fichero está guardado, pero desde aquí no puedo apuntarlo en el "
+                    "catálogo (la biblioteca está en una carpeta de red)."
+                )
+            self.puente.registrar_formato(id_libro, extension)
+            return destino
+
         with self.catalogo.escribir() as cx:
             self.catalogo.anadir_formato(cx, id_libro, extension, base, destino.stat().st_size)
         self._opf(id_libro)

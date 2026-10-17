@@ -53,7 +53,21 @@ def principal():
         return
     try:
         from waitress import serve
-        serve(app, host="0.0.0.0", port=ajustes.puerto, threads=6, ident="Vidalibre")
+
+        # Cuatro hilos bastan para una casa y cada hilo cuesta memoria (la
+        # biblioteca de C reserva un montón por hilo). `channel_timeout` cierra
+        # las conexiones que se quedan abiertas sin pedir nada, que es lo que
+        # pasa cuando el móvil se bloquea con la página abierta.
+        serve(
+            app,
+            host="0.0.0.0",
+            port=ajustes.puerto,
+            threads=int(os.environ.get("VIDALIBRE_HILOS", "4")),
+            connection_limit=60,
+            channel_timeout=120,
+            cleanup_interval=30,
+            ident="Vidalibre",
+        )
     except ImportError:
         app.run(host="0.0.0.0", port=ajustes.puerto)
 

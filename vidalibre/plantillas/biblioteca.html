@@ -29,7 +29,7 @@
 </div>
 
 {% if libros %}
-  {{ rejilla(libros) }}
+  {{ rejilla(libros, lecturas) }}
   {% if paginas_totales > 1 %}
   <nav class="paginacion">
     {% if pagina > 1 %}

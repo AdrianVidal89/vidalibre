@@ -8,6 +8,11 @@
 <link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icono-180.png') }}">
 <meta name="theme-color" content="#132742">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vidalibre">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="{{ url_for('static', filename='manifiesto.json') }}">
 <link rel="search" type="application/opensearchdescription+xml" title="{{ nombre_app }}"
       href="{{ url_for('opds.buscador') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v={{ version }}">
@@ -29,18 +34,34 @@
   </form>
 
   <nav class="menu">
-    <a href="{{ url_for('paginas.inicio') }}" {% if request.endpoint == 'paginas.inicio' %}class="activo"{% endif %}>Libros</a>
-    <a href="{{ url_for('paginas.estantes', tipo='autores') }}" {% if request.endpoint == 'paginas.estantes' %}class="activo"{% endif %}>Estantes</a>
-    <a href="{{ url_for('paginas.subir') }}" {% if request.endpoint == 'paginas.subir' %}class="activo"{% endif %}>Subir</a>
-    <a href="{{ url_for('paginas.convertir_en_bloque') }}" {% if request.endpoint == 'paginas.convertir_en_bloque' %}class="activo"{% endif %}>Convertir</a>
+    <a href="{{ url_for('paginas.inicio') }}" {% if request.endpoint == 'paginas.inicio' %}class="activo"{% endif %}>
+      <i aria-hidden="true">📚</i><span>Libros</span></a>
+    <a href="{{ url_for('paginas.estantes', tipo='autores') }}" {% if request.endpoint == 'paginas.estantes' %}class="activo"{% endif %}>
+      <i aria-hidden="true">🗂️</i><span>Estantes</span></a>
+    <a href="{{ url_for('paginas.subir') }}" {% if request.endpoint == 'paginas.subir' %}class="activo"{% endif %}>
+      <i aria-hidden="true">⬆️</i><span>Subir</span></a>
+    <a href="{{ url_for('paginas.convertir_en_bloque') }}" {% if request.endpoint == 'paginas.convertir_en_bloque' %}class="activo"{% endif %}>
+      <i aria-hidden="true">🔄</i><span>Convertir</span></a>
     {% if ajustes.con_dispositivo %}
-    <a href="{{ url_for('paginas.aparato') }}" {% if request.endpoint == 'paginas.aparato' %}class="activo"{% endif %}>Kindle</a>
+    <a href="{{ url_for('paginas.aparato') }}" {% if request.endpoint == 'paginas.aparato' %}class="activo"{% endif %}>
+      <i aria-hidden="true">📖</i><span>Kindle</span></a>
     {% endif %}
     <a href="{{ url_for('paginas.trabajos') }}" {% if request.endpoint == 'paginas.trabajos' %}class="activo"{% endif %}>
-      Trabajos{% if trabajos_activos %} <span class="punto" title="{{ trabajos_activos }} en marcha"></span>{% endif %}
-    </a>
+      <i aria-hidden="true">⏳</i><span>Trabajos</span>{% if trabajos_activos %}<span class="punto" title="{{ trabajos_activos }} en marcha"></span>{% endif %}</a>
   </nav>
 </header>
+
+{% if not escribe_catalogo %}
+<p class="cinta">
+  {% if servidor_remoto %}
+    Esta copia lee la biblioteca de casa y le manda los cambios al NAS
+    (<a href="{{ servidor_remoto }}" target="_blank" rel="noopener">abrirla allí</a>).
+  {% else %}
+    La biblioteca está en una carpeta de red: desde aquí se puede leer y convertir,
+    pero no cambiar fichas ni subir libros.
+  {% endif %}
+</p>
+{% endif %}
 
 {% with mensajes = get_flashed_messages(with_categories=true) %}
   {% if mensajes %}

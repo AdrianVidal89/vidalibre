@@ -1,10 +1,15 @@
 # Vidalibre en el NAS Jupiter.
 #
-# Memoria: el NAS tiene 3,7 GB para todo. Vidalibre en reposo anda por los
-# 70-90 MB; lo que se dispara es la conversión, que arranca un Calibre entero
-# (Qt incluido) y puede pedir 400-600 MB con un libro gordo. De ahí el techo
-# de 768 MB y el permiso para tirar de intercambio hasta 1,5 GB: antes lento
-# que llevarse por delante a Treasure o a Alejandria.
+# Memoria: el NAS tiene 3,7 GB para todo, así que Vidalibre se aprieta el
+# cinturón. En reposo ronda los 50-60 MB; lo que se dispara es la conversión,
+# que arranca un Calibre entero (Qt incluido) y puede pedir 300-400 MB con un
+# libro gordo. De ahí el techo de 512 MB, con permiso para tirar de
+# intercambio hasta 1 GB en el caso raro: antes lento que llevarse por delante
+# a Treasure o a Alejandria.
+#
+# El número que se ve en «docker stats» incluye también la caché de ficheros
+# que el núcleo guarda al leer los libros. Esa caché se suelta sola en cuanto
+# haga falta: no es memoria ocupada de verdad.
 services:
   web:
     build:
@@ -28,11 +33,13 @@ services:
       - VIDALIBRE_SOLO_LECTURA=${SOLO_LECTURA:-0}
       - TZ=${TZ:-Europe/Madrid}
       - HOME=/tmp
+      - MALLOC_ARENA_MAX=2
+      - VIDALIBRE_HILOS=${HILOS:-4}
     volumes:
       - ${BIBLIOTECA:?define BIBLIOTECA en .env}:/biblioteca
       - ./datos:/datos
-    mem_limit: 768m
-    memswap_limit: 1536m
+    mem_limit: ${MEMORIA:-512m}
+    memswap_limit: ${MEMORIA_TOTAL:-1024m}
     cpus: 1.5
     healthcheck:
       test: ["CMD", "python", "-c",

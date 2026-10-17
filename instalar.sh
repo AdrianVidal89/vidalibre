@@ -64,6 +64,10 @@ VIDALIBRE_MODO=local
 VIDALIBRE_DATOS="$HOME/.local/share/vidalibre/datos"
 # Carpeta que se propone al convertir libros a una carpeta del ordenador.
 VIDALIBRE_DESCARGAS="$HOME/Descargas"
+# La biblioteca de casa. Desde el portátil la carpeta está en red y el catálogo
+# no se puede tocar desde aquí (SQLite no sabe echar cerrojos por red), así que
+# los cambios se le piden al NAS, que es quien manda. Ver LEEME.md.
+VIDALIBRE_SERVIDOR="http://100.92.242.23:8084"
 CONF
     echo "Ajustes nuevos en $AJUSTES"
 fi

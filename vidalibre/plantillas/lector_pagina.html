@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="{{ cap.idioma or 'es' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>{{ libro.titulo }}</title>
+{# Primero los estilos del propio libro, y encima los nuestros: así mandamos
+   nosotros en lo que importa (tamaño, color, márgenes) sin perder las
+   cursivas, los versos ni las tablas que trae la edición. #}
+{% for hoja in cap.hojas %}<link rel="stylesheet" href="{{ hoja }}">{% endfor %}
+{% if cap.estilos %}<style>{{ cap.estilos|safe }}</style>{% endif %}
+<link rel="stylesheet" href="{{ url_for('static', filename='lectura.css') }}">
+</head>
+<body class="{{ cap.clase }}">
+<div id="pagina">
+{{ cap.html|safe }}
+<span id="fin" aria-hidden="true"></span>
+</div>
+</body>
+</html>

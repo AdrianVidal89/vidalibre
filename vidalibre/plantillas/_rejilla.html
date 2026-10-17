@@ -1,10 +1,18 @@
-{% macro rejilla(libros) %}
+{% macro rejilla(libros, lecturas={}) %}
 <ul class="rejilla">
   {% for libro in libros %}
   <li class="tarjeta">
     <a href="{{ url_for('paginas.libro', id_libro=libro.id) }}">
-      <img loading="lazy" src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}"
-           alt="Portada de {{ libro.titulo }}">
+      <span class="cubierta">
+        <img loading="lazy" src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}"
+             alt="Portada de {{ libro.titulo }}">
+        {% set leido = lecturas.get(libro.id) %}
+        {% if leido and leido > 0.01 %}
+        <span class="leido" title="Vas por el {{ (leido * 100) | round | int }}%">
+          <i style="width: {{ (leido * 100) | round | int }}%"></i>
+        </span>
+        {% endif %}
+      </span>
       <span class="titulo">{{ libro.titulo }}</span>
       <span class="autor">{{ libro.autores | join(', ') }}</span>
       <span class="formatos">

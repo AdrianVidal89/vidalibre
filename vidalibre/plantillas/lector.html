@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>{{ libro.titulo }} — leyendo</title>
+<link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#faf6ee">
+<link rel="stylesheet" href="{{ url_for('static', filename='lector.css') }}?v={{ version }}">
+</head>
+<body class="lector" data-inicio="{{ inicio|e }}">
+
+<header class="barra barra-arriba" id="arriba">
+  <a class="icono" href="{{ url_for('paginas.libro', id_libro=libro.id) }}" title="Volver a la ficha">‹</a>
+  <div class="titulo-barra">
+    <b>{{ epub.titulo or libro.titulo }}</b>
+    <small id="titulo-capitulo"></small>
+  </div>
+  <button class="icono" data-panel="indice" title="Índice" aria-label="Índice">☰</button>
+  <button class="icono" data-panel="buscar" title="Buscar en el libro" aria-label="Buscar">⌕</button>
+  <button class="icono letras" data-panel="ajustes" title="Letra y aspecto" aria-label="Aspecto">Aa</button>
+</header>
+
+<iframe id="marco" title="{{ libro.titulo }}" src="{{ url_for('lector.pagina', id_libro=libro.id, numero=0) }}"></iframe>
+
+<div id="cargando" class="cargando" hidden><span></span></div>
+
+<footer class="barra barra-abajo" id="abajo">
+  <div class="progreso-lectura"><i id="progreso"></i></div>
+  <div class="estado">
+    <span id="estado-izq"></span>
+    <span id="estado-der"></span>
+  </div>
+</footer>
+
+<aside class="panel" id="panel-indice" hidden>
+  <header><b>Índice</b><button class="icono" data-cerrar>×</button></header>
+  <ol class="indice">
+    {% for entrada in indice %}
+    <li><button data-ir="{{ entrada.capitulo }}" data-ancla="{{ entrada.ancla }}">{{ entrada.titulo }}</button></li>
+    {% else %}
+    <li class="vacio">Este libro no trae índice. Usa la barra de abajo para moverte.</li>
+    {% endfor %}
+  </ol>
+</aside>
+
+<aside class="panel" id="panel-buscar" hidden>
+  <header><b>Buscar en el libro</b><button class="icono" data-cerrar>×</button></header>
+  <form id="forma-buscar">
+    <input type="search" id="texto-buscar" placeholder="Una palabra o una frase…" autocomplete="off">
+    <button type="submit">Buscar</button>
+  </form>
+  <ol class="resultados-busqueda" id="resultados-busqueda"></ol>
+</aside>
+
+<aside class="panel" id="panel-ajustes" hidden>
+  <header><b>Letra y aspecto</b><button class="icono" data-cerrar>×</button></header>
+
+  <div class="ajuste">
+    <span>Tamaño</span>
+    <div class="botonera">
+      <button data-ajuste="tam" data-paso="-1" aria-label="Más pequeña">A−</button>
+      <output id="valor-tam"></output>
+      <button data-ajuste="tam" data-paso="1" aria-label="Más grande">A+</button>
+    </div>
+  </div>
+
+  <div class="ajuste">
+    <span>Interlineado</span>
+    <div class="botonera">
+      {% for valor, etiqueta in [(1.35, 'Junto'), (1.62, 'Normal'), (1.95, 'Suelto')] %}
+      <button data-fijar="inter" data-valor="{{ valor }}">{{ etiqueta }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="ajuste">
+    <span>Márgenes</span>
+    <div class="botonera">
+      {% for valor, etiqueta in [(14, 'Finos'), (26, 'Normales'), (54, 'Anchos')] %}
+      <button data-fijar="margen" data-valor="{{ valor }}">{{ etiqueta }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="ajuste">
+    <span>Letra</span>
+    <div class="botonera">
+      <button data-fijar="fuente" data-valor="serif">Serif</button>
+      <button data-fijar="fuente" data-valor="sans">Palo seco</button>
+      <button data-fijar="fuente" data-valor="libro">La del libro</button>
+    </div>
+  </div>
+
+  <div class="ajuste">
+    <span>Color</span>
+    <div class="botonera temas">
+      {% for valor, etiqueta in [('claro', 'Claro'), ('sepia', 'Sepia'), ('noche', 'Noche'), ('negro', 'Negro')] %}
+      <button data-fijar="tema" data-valor="{{ valor }}" class="tema-{{ valor }}">{{ etiqueta }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="ajuste">
+    <span>Texto</span>
+    <div class="botonera">
+      <button data-fijar="alineacion" data-valor="justify">Justificado</button>
+      <button data-fijar="alineacion" data-valor="left">Sin justificar</button>
+    </div>
+  </div>
+
+  <div class="ajuste">
+    <span>Avance</span>
+    <div class="botonera">
+      <button data-fijar="modo" data-valor="paginas">Por páginas</button>
+      <button data-fijar="modo" data-valor="desplazar">Desplazando</button>
+    </div>
+  </div>
+
+  <p class="nota">Toca el centro de la página para esconder las barras. Los lados pasan página.</p>
+</aside>
+
+<div class="velo" id="velo" hidden></div>
+
+<script src="{{ url_for('static', filename='lector.js') }}?v={{ version }}"></script>
+</body>
+</html>

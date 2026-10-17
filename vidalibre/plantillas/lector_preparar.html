@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Preparar para leer{% endblock %}
+{% block contenido %}
+<div class="formulario estrecho">
+  <h1>Para leerlo aquí hace falta el EPUB</h1>
+  <p class="explica">«{{ libro.titulo }}» está en {{ libro.formatos | join(' y ') }}, y el lector
+    trabaja con EPUB, que es el formato que fluye y se adapta a la pantalla.
+    {% if error %}<br><b>Además:</b> {{ error }}{% endif %}</p>
+  <p class="explica">Puedo convertirlo ahora: tarda unos segundos y el EPUB se queda guardado
+    dentro de este mismo libro, junto a los formatos que ya tiene.</p>
+  <div class="acciones">
+    <form method="post" action="{{ url_for('lector.preparar', id_libro=libro.id) }}">
+      <button class="principal">Preparar para leer</button>
+    </form>
+    <a class="boton suave" href="{{ url_for('paginas.libro', id_libro=libro.id) }}">Volver a la ficha</a>
+  </div>
+</div>
+{% endblock %}

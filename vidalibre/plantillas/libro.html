@@ -6,6 +6,13 @@
   <div class="ficha-portada">
     <img src="{{ url_for('paginas.portada', id_libro=libro.id) }}" alt="Portada de {{ libro.titulo }}">
     <div class="descargas">
+      <a class="boton principal grande" href="{{ url_for('lector.leer', id_libro=libro.id) }}">
+        {% if 'EPUB' in libro.formatos %}
+          {{ 'Seguir leyendo' if lectura and lectura.fraccion > 0.01 else 'Leer' }}
+          {% if lectura and lectura.fraccion > 0.01 %}<small>{{ (lectura.fraccion * 100) | round | int }}%</small>{% endif %}
+        {% elif 'PDF' in libro.formatos %}Abrir el PDF
+        {% else %}Preparar para leer{% endif %}
+      </a>
       {% for fichero in libro.ficheros %}
         <a class="boton{% if not en_disco.get(fichero.formato) %} roto{% endif %}"
            href="{{ url_for('paginas.descargar', id_libro=libro.id, formato=fichero.formato|lower) }}">
@@ -42,7 +49,6 @@
       {% if libro.identificadores %}
       <dt>Identificadores</dt><dd>{% for tipo, valor in libro.identificadores.items() %}<code>{{ tipo }}: {{ valor }}</code> {% endfor %}</dd>
       {% endif %}
-      <dt>Carpeta</dt><dd><code>{{ libro.ruta }}</code></dd>
     </dl>
 
     {% if libro.etiquetas %}
@@ -108,6 +114,7 @@
         <input type="file" name="fichero" required>
         <button>Añadir este formato al libro</button>
       </form>
+      <p class="explica">Carpeta: <code>{{ libro.ruta }}</code></p>
       <ul class="formatos-lista">
         {% for fichero in libro.ficheros %}
         <li>

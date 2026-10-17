@@ -1,0 +1,132 @@
+/* Lo que se ve DENTRO de la página del libro.
+   Va después de los estilos de la edición, así que gana en lo que marcamos
+   con !important: tamaño de letra, color, interlineado y márgenes. Lo demás
+   (cursivas, versos, tablas, notas) se deja como lo trae el libro. */
+
+:root {
+  --tam: 20px;
+  --inter: 1.62;
+  --margen-h: 26px;
+  --margen-v: 20px;
+  --hueco: 52px;
+  --fuente: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --tinta: #1a1a18;
+  --papel: #faf6ee;
+  --apagado: #6f6a60;
+  --enlace: #9a5b21;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
+  background: var(--papel);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100%;
+  background: var(--papel) !important;
+  color: var(--tinta) !important;
+  font-family: var(--fuente) !important;
+  font-size: var(--tam) !important;
+  line-height: var(--inter) !important;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* La paginación: el texto se reparte en columnas del ancho exacto de la
+   pantalla, y pasar de página es correr la cinta de columnas. Es como lo hacen
+   los lectores buenos; nada de recortar el texto a mano. */
+#pagina {
+  height: 100%;   /* el lector la ajusta a un número entero de líneas */
+  box-sizing: border-box;
+  padding: var(--margen-v) var(--margen-h);
+  column-gap: var(--hueco);
+  column-fill: auto;
+  transform: translateX(0);
+  will-change: transform;
+  orphans: 2;
+  widows: 2;
+}
+#pagina.animado { transition: transform .22s cubic-bezier(.4, 0, .2, 1); }
+
+/* Modo desplazamiento: para quien prefiera deslizar en el móvil. */
+body.desplazar { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+body.desplazar #pagina {
+  height: auto !important;
+  padding-bottom: 40vh !important;
+  column-width: auto !important;
+  column-count: 1;
+  width: auto !important;
+  transform: none !important;
+  max-width: 42em;
+  margin: 0 auto;
+  padding-bottom: 40vh;
+}
+
+#pagina > *, #pagina p, #pagina div, #pagina section {
+  max-width: 100% !important;
+  float: none !important;
+}
+#pagina p, #pagina li, #pagina blockquote, #pagina td {
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  text-align: var(--alineacion, justify);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
+}
+#pagina h1, #pagina h2, #pagina h3, #pagina h4, #pagina h5, #pagina h6 {
+  color: inherit !important;
+  line-height: 1.25 !important;
+  text-align: left;
+  hyphens: none;
+  break-after: avoid;
+  page-break-after: avoid;
+  margin-top: 0;
+}
+#pagina h1 { font-size: 1.5em !important; }
+#pagina h2 { font-size: 1.3em !important; }
+#pagina h3 { font-size: 1.14em !important; }
+
+/* Las imágenes tienen que caber en la página sí o sí. El `width:auto` es
+   importante: muchas ediciones traen `width:100%` en su hoja de estilo y, con
+   una altura máxima puesta, eso hace que la imagen se salga de la columna y
+   aparezca cortada por la mitad. */
+#pagina img, #pagina svg, #pagina image {
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  max-height: var(--alto-pagina, calc(100vh - 92px)) !important;
+  object-fit: contain;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+/* Una imagen sola en su párrafo (cubiertas, ilustraciones a página completa)
+   se centra en la página. */
+#pagina p > img:only-child, #pagina div > img:only-child, #pagina h1 > img:only-child {
+  display: block;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+#pagina figure, #pagina table, #pagina pre, #pagina blockquote {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  max-width: 100% !important;
+}
+#pagina table { border-collapse: collapse; font-size: .9em !important; }
+#pagina pre { white-space: pre-wrap; font-size: .85em !important; }
+#pagina a { color: var(--enlace) !important; text-decoration: none; }
+#pagina a:hover { text-decoration: underline; }
+#pagina hr { border: none; border-top: 1px solid currentColor; opacity: .25; }
+#pagina sup, #pagina sub { line-height: 0; }
+
+/* Las notas al pie y los números de página de la edición estorban al paginar. */
+#pagina .calibre_pb_break, #pagina .pagebreak { display: none !important; }
+
+#fin { display: block; width: 1px; height: 1px; }
+
+::selection { background: rgba(233, 162, 59, .35); }

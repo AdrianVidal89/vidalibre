@@ -1,0 +1,16 @@
+{
+  "name": "Vidalibre",
+  "short_name": "Vidalibre",
+  "description": "La biblioteca de libros de casa",
+  "start_url": "../",
+  "scope": "../",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1726",
+  "theme_color": "#132742",
+  "icons": [
+    { "src": "icono-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
