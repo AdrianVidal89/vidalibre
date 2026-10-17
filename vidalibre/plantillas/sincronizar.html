@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block titulo %}Sincronizar con {{ aparato.nombre }}{% endblock %}
+{% block contenido %}
+<h1>Sincronizar la lectura con {{ aparato.nombre }}</h1>
+<p class="explica">Gana siempre <b>el más avanzado</b>: si el aparato va por delante, se actualiza la
+  aplicación; si vas más adelantado en el móvil, se actualiza el aparato. Nunca se retrocede.
+  {% if aparato.tipo == 'kindle' %}
+  <br>Del Kindle solo se puede <b>leer</b> la posición, y solo en los modelos que la guardan en el
+  formato antiguo; escribirle no se puede sin arriesgarse a estropearle un fichero.
+  {% else %}
+  <br>Antes de tocar nada se guarda una copia de la base de datos del Kobo.
+  {% endif %}
+</p>
+
+{% macro tabla(lineas, titulo, nota) %}
+  {% if lineas %}
+  <h2>{{ titulo }}</h2>
+  <p class="explica">{{ nota }}</p>
+  <ul class="formatos-lista comparativa">
+    {% for linea in lineas %}
+    <li>
+      <a href="{{ url_for('paginas.libro', id_libro=linea.libro) }}">{{ linea.titulo }}</a>
+      <span class="numeros">
+        app <b>{{ (linea.fraccion_app * 100) | round | int }}%</b>
+        →
+        aparato <b>{{ (linea.fraccion_aparato * 100) | round | int }}%</b>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endmacro %}
+
+{{ tabla(plan.a_la_app, 'El aparato va por delante', 'Se actualizará la aplicación con estas posiciones.') }}
+{{ tabla(plan.al_aparato, 'La aplicación va por delante', 'Se le pasará la posición al aparato.') }}
+
+{% if plan.ilegibles %}
+<h2>No he podido leer su posición</h2>
+<ul class="formatos-lista">
+  {% for linea in plan.ilegibles %}
+  <li><a href="{{ url_for('paginas.libro', id_libro=linea.libro) }}">{{ linea.titulo }}</a>
+    <small>{{ linea.motivo }}</small></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<p class="explica">
+  {{ plan.iguales | length }} libro(s) ya van iguales{% if plan.sin_emparejar %} ·
+  {{ plan.sin_emparejar }} del aparato no están en la biblioteca{% endif %}.
+</p>
+
+<div class="acciones">
+  {% if plan.a_la_app or plan.al_aparato %}
+  <form method="post" action="{{ url_for('paginas.hacer_sincronizacion') }}">
+    <input type="hidden" name="ruta" value="{{ aparato.ruta }}">
+    <button class="principal">Sincronizar ahora</button>
+  </form>
+  {% else %}
+  <p class="explica">No hay nada que sincronizar: va todo al día.</p>
+  {% endif %}
+  <a class="boton suave" href="{{ url_for('paginas.aparato') }}">Volver</a>
+</div>
+{% endblock %}

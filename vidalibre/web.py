@@ -11,8 +11,8 @@ from pathlib import Path
 from flask import (Blueprint, Response, abort, current_app, flash, jsonify,
                    redirect, render_template, request, send_file, url_for)
 
-from . import (NOMBRE, __version__, dispositivo, ficheros, lector, motor,
-               puede_escribir)
+from . import (NOMBRE, __version__, dispositivo, drm, ficheros, fuentes,
+               lector, motor, puede_escribir, sincronizacion)
 from .catalogo import ErrorCatalogo
 from .motor import Trabajo
 
@@ -279,6 +279,10 @@ def libro(id_libro):
                 (ruta := ficheros.ruta_fichero(catalogo().raiz, datos, f["formato"]))
                 and ruta.is_file()
             )
+            for f in datos["ficheros"]
+        },
+        candados={
+            f["formato"]: drm.estado(ficheros.ruta_fichero(catalogo().raiz, datos, f["formato"]))
             for f in datos["ficheros"]
         },
     )
@@ -674,6 +678,155 @@ def convertir_en_bloque():
     return redirect(url_for("paginas.trabajos", destacado=trabajo.id))
 
 
+# ------------------------------------------------------------ libros nuevos
+@paginas.route("/descubrir")
+def descubrir():
+    """Buscar libros libres y traérselos."""
+    consulta = request.args.get("q", "").strip()
+    idioma = request.args.get("idioma", "es")
+    resultados, errores = [], []
+    novedades = []
+    if consulta:
+        resultados, errores = fuentes.buscar(consulta, idioma, ajustes().datos / "fuentes")
+    else:
+        try:
+            novedades = fuentes.novedades_standard(ajustes().datos / "fuentes")
+        except fuentes.ErrorFuente as ex:
+            errores.append(str(ex))
+    for error in errores:
+        flash(error, "aviso")
+    return render_template(
+        "descubrir.html",
+        consulta=consulta,
+        idioma=idioma,
+        resultados=resultados,
+        novedades=novedades,
+    )
+
+
+@paginas.route("/descubrir/anadir", methods=["POST"])
+def anadir_de_fuente():
+    comprobar_escritura()
+    libro = {
+        "fuente": request.form.get("fuente", ""),
+        "id": request.form.get("id", ""),
+        "titulo": request.form.get("titulo", "") or "Libro",
+        "autores": [a for a in request.form.getlist("autor") if a],
+        "portada": request.form.get("portada", ""),
+        "formatos": ({"epub": request.form["epub"]} if request.form.get("epub") else {}),
+    }
+    trabajo = Trabajo(f"Traer «{libro['titulo']}»", tipo="descarga")
+
+    def tarea(trabajo):
+        trabajo.anotar("Buscando el fichero…")
+        try:
+            formatos = fuentes.formatos_de(libro)
+        except fuentes.ErrorFuente as ex:
+            trabajo.estado = "fallado"
+            trabajo.anotar(str(ex))
+            return
+        url = formatos.get("epub") or next(iter(formatos.values()), None)
+        if not url:
+            trabajo.estado = "fallado"
+            trabajo.anotar("Ese libro no tiene ningún fichero descargable.")
+            return
+
+        trabajo.anotar("Descargando…")
+        carpeta = ajustes().temporales / trabajo.id
+        try:
+            fichero = fuentes.descargar(url, carpeta, f"{libro['titulo']}.epub")
+        except fuentes.ErrorFuente as ex:
+            trabajo.estado = "fallado"
+            trabajo.anotar(str(ex))
+            return
+
+        trabajo.anotar("Metiéndolo en la biblioteca…")
+        try:
+            if not catalogo_escribible():
+                if not puente():
+                    raise ErrorCatalogo("Desde aquí no puedo escribir en la biblioteca.")
+                puente().subir_libro(fichero)
+                trabajo.resultados.append({"texto": f"{libro['titulo']} (en la biblioteca de casa)"})
+            else:
+                extension = fichero.suffix.lstrip(".").lower()
+                id_libro, avisos = biblioteca().anadir_libro(
+                    fichero, extension, metadatos={
+                        "titulo": libro["titulo"], "autores": libro["autores"],
+                    }, mover=True,
+                )
+                for aviso in avisos:
+                    trabajo.anotar(aviso)
+                datos = catalogo().libro(id_libro)
+                trabajo.resultados.append({"texto": datos["titulo"], "libro": id_libro})
+        except Exception as ex:
+            trabajo.estado = "fallado"
+            trabajo.anotar(f"No he podido guardarlo: {ex}")
+            return
+        finally:
+            shutil.rmtree(carpeta, ignore_errors=True)
+        trabajo.anotar("Listo.")
+
+    encolar(trabajo, tarea)
+    return redirect(url_for("paginas.trabajos", destacado=trabajo.id))
+
+
+@paginas.route("/libro/<int:id_libro>/ficha-online")
+def ficha_online(id_libro):
+    """Candidatos de Open Library para completar la ficha de un libro."""
+    datos = catalogo().libro(id_libro)
+    if not datos:
+        abort(404)
+    consulta = request.args.get("q") or datos["titulo"]
+    autor = request.args.get("autor", (datos["autores"] or [""])[0])
+    candidatos, error = [], None
+    try:
+        candidatos = fuentes.buscar_ficha(consulta, autor)
+    except fuentes.ErrorFuente as ex:
+        error = str(ex)
+    return render_template("ficha_online.html", libro=datos, candidatos=candidatos,
+                           consulta=consulta, autor=autor, error=error)
+
+
+@paginas.route("/libro/<int:id_libro>/ficha-online", methods=["POST"])
+def aplicar_ficha_online(id_libro):
+    comprobar_escritura()
+    if not catalogo_escribible():
+        avisar_de_puente()
+        return redirect(url_for("paginas.libro", id_libro=id_libro))
+    datos = catalogo().libro(id_libro)
+    if not datos:
+        abort(404)
+    formulario = request.form
+    cambios = {}
+    if formulario.get("usar_titulo") and formulario.get("titulo"):
+        cambios["titulo"] = formulario["titulo"]
+    if formulario.get("usar_autores") and formulario.getlist("autor"):
+        cambios["autores"] = formulario.getlist("autor")
+    if formulario.get("usar_publicado") and formulario.get("publicado"):
+        cambios["publicado"] = fecha_calibre(f"{formulario['publicado']}-01-01")
+    if formulario.get("usar_editorial") and formulario.get("editorial"):
+        cambios["editorial"] = formulario["editorial"]
+    if formulario.get("usar_etiquetas") and formulario.getlist("etiqueta"):
+        cambios["etiquetas"] = sorted(set(datos["etiquetas"] + formulario.getlist("etiqueta")))
+    if formulario.get("usar_isbn") and formulario.get("isbn"):
+        cambios["identificadores"] = {**datos["identificadores"], "isbn": formulario["isbn"]}
+
+    imagen = None
+    if formulario.get("usar_portada") and formulario.get("portada"):
+        try:
+            imagen = fuentes.traer_portada(formulario["portada"])
+        except fuentes.ErrorFuente as ex:
+            flash(str(ex), "aviso")
+
+    if not cambios and not imagen:
+        flash("No has marcado nada que traer.", "aviso")
+        return redirect(url_for("paginas.ficha_online", id_libro=id_libro))
+
+    biblioteca().guardar_edicion(id_libro, cambios, portada=imagen)
+    flash("Ficha completada con los datos de Open Library.", "ok")
+    return redirect(url_for("paginas.libro", id_libro=id_libro))
+
+
 # ------------------------------------------------------------------- trabajos
 @paginas.route("/trabajos")
 def trabajos():
@@ -719,15 +872,84 @@ def descargar_resultado(id_trabajo, nombre):
 def aparato():
     if not ajustes().con_dispositivo:
         return render_template("dispositivo_no.html")
-    kindles = dispositivo.detectar()
-    datos = [dispositivo.info(k) for k in kindles]
-    libros_dentro = dispositivo.libros(kindles[0]) if kindles else []
+    aparatos = [sincronizacion.info(a) for a in sincronizacion.detectar()]
+    for datos in aparatos:
+        datos["libros"] = len(sincronizacion.libros_en_el_aparato(datos))
     return render_template(
         "dispositivo.html",
-        kindles=datos,
-        libros_dentro=libros_dentro,
+        aparatos=aparatos,
+        contenido={a["ruta"]: sincronizacion.libros_en_el_aparato(a) for a in aparatos},
         ultimos=catalogo().libros(orden="reciente", por_pagina=24)[0],
     )
+
+
+def _aparato_de(ruta):
+    for aparato in sincronizacion.detectar():
+        if aparato["ruta"] == ruta:
+            return aparato
+    return None
+
+
+@paginas.route("/dispositivo/sincronizar")
+def ver_sincronizacion():
+    """Enseña qué pasaría, antes de tocar nada."""
+    if not ajustes().con_dispositivo:
+        abort(403)
+    aparato = _aparato_de(request.args.get("ruta", ""))
+    if not aparato:
+        flash("No veo ese aparato conectado.", "error")
+        return redirect(url_for("paginas.aparato"))
+    plan = sincronizacion.plan_de_sincronizacion(catalogo(), aparato)
+    return render_template("sincronizar.html", plan=plan, aparato=aparato)
+
+
+@paginas.route("/dispositivo/sincronizar", methods=["POST"])
+def hacer_sincronizacion():
+    comprobar_escritura()
+    if not ajustes().con_dispositivo:
+        abort(403)
+    aparato = _aparato_de(request.form.get("ruta", ""))
+    if not aparato:
+        flash("No veo ese aparato conectado.", "error")
+        return redirect(url_for("paginas.aparato"))
+
+    trabajo = Trabajo(f"Sincronizar la lectura con {aparato['nombre']}", tipo="sincronizacion")
+
+    def tarea(trabajo):
+        from .lector_web import _LIBROS, _preparar_cache
+
+        _preparar_cache()
+        trabajo.anotar("Mirando por dónde va cada libro…")
+        plan = sincronizacion.plan_de_sincronizacion(catalogo(), aparato)
+        trabajo.pasos = max(1, len(plan["a_la_app"]) + len(plan["al_aparato"]))
+        resultado = sincronizacion.aplicar(
+            catalogo(), plan, _LIBROS, ajustes().datos / "copias-aparatos",
+            puente=puente() if not catalogo_escribible() else None,
+        )
+        trabajo.paso = trabajo.pasos
+        for linea in plan["a_la_app"]:
+            trabajo.resultados.append({
+                "texto": f"{linea['titulo']}: del aparato a la app "
+                         f"({linea['fraccion_aparato'] * 100:.0f}%)",
+                "libro": linea["libro"],
+            })
+        for linea in plan["al_aparato"]:
+            trabajo.resultados.append({
+                "texto": f"{linea['titulo']}: de la app al aparato "
+                         f"({linea['fraccion_app'] * 100:.0f}%)",
+                "libro": linea["libro"],
+            })
+        trabajo.anotar(
+            f"Listo: {resultado['a_la_app']} al día en la app, "
+            f"{resultado['al_aparato']} en el aparato, {len(plan['iguales'])} ya iguales."
+        )
+        for error in resultado["errores"]:
+            trabajo.anotar(error)
+        if resultado["errores"] and not (resultado["a_la_app"] or resultado["al_aparato"]):
+            trabajo.estado = "fallado"
+
+    encolar(trabajo, tarea)
+    return redirect(url_for("paginas.trabajos", destacado=trabajo.id))
 
 
 @paginas.route("/dispositivo/enviar", methods=["POST"])
@@ -735,17 +957,20 @@ def enviar_al_aparato():
     comprobar_escritura()
     if not ajustes().con_dispositivo:
         abort(403)
-    kindle = request.form.get("kindle") or ""
-    if not dispositivo.es_kindle(Path(kindle)):
-        flash("No veo ese Kindle conectado.", "error")
+    ruta_aparato = request.form.get("kindle") or request.form.get("ruta") or ""
+    aparato = _aparato_de(ruta_aparato)
+    if not aparato:
+        flash("No veo ese aparato conectado.", "error")
         return redirect(url_for("paginas.aparato"))
     ids = [int(i) for i in request.form.getlist("ids") if i.isdigit()]
     formato = request.form.get("formato", "azw3").lower()
     if not ids:
         flash("No has elegido ningún libro.", "aviso")
         return redirect(url_for("paginas.aparato"))
+    kindle = ruta_aparato
 
-    trabajo = Trabajo(f"{len(ids)} libro(s) al Kindle", pasos=len(ids), tipo="kindle")
+    trabajo = Trabajo(f"{len(ids)} libro(s) a {aparato['nombre']}",
+                      pasos=len(ids), tipo="aparato")
 
     def tarea(trabajo):
         for indice, id_libro in enumerate(ids, start=1):
@@ -766,9 +991,13 @@ def enviar_al_aparato():
                     id_libro, [formato], trabajo=trabajo,
                 )
                 origen_formato, origen_ruta = biblioteca().mejor_origen(datos)
-                destino, con_portada = dispositivo.copiar_al_aparato(
-                    ruta, kindle, origen=origen_ruta
-                )
+                if aparato["tipo"] == "kobo":
+                    sincronizacion.copiar_al_kobo(ruta, ruta_aparato)
+                    con_portada = True   # el Kobo se saca la portada él solo
+                else:
+                    destino, con_portada = dispositivo.copiar_al_aparato(
+                        ruta, kindle, origen=origen_ruta
+                    )
                 trabajo.resultados.append({
                     "texto": f"{datos['titulo']} ({_formato})"
                              + ("" if con_portada else " — sin portada"),
@@ -778,7 +1007,7 @@ def enviar_al_aparato():
                     trabajo.anotar(f"Convertido y guardado también en la biblioteca: {_formato}")
             except Exception as ex:
                 trabajo.anotar(f"Falló {datos['titulo']}: {ex}")
-        trabajo.anotar("Expulsa el Kindle antes de desenchufarlo.")
+        trabajo.anotar("Expulsa el aparato antes de desenchufarlo.")
 
     encolar(trabajo, tarea)
     return redirect(url_for("paginas.trabajos", destacado=trabajo.id))
@@ -794,7 +1023,7 @@ def portadas_del_aparato():
         flash("No veo ese Kindle conectado.", "error")
         return redirect(url_for("paginas.aparato"))
 
-    trabajo = Trabajo("Reponer portadas del Kindle", tipo="kindle")
+    trabajo = Trabajo("Reponer portadas del Kindle", tipo="aparato")
 
     def tarea(trabajo):
         hechas, fallidas = dispositivo.reparar_portadas(kindle, trabajo)

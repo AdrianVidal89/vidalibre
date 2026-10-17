@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block titulo %}Completar la ficha{% endblock %}
+{% block contenido %}
+<h1>Completar la ficha de «{{ libro.titulo }}»</h1>
+<p class="explica">Datos de <b>Open Library</b>, el catálogo abierto de Internet Archive. Elige el
+  libro que sea el tuyo y marca qué quieres traerte. Lo que no marques se queda como está.</p>
+
+<form class="buscador-fuentes" method="get">
+  <input type="search" name="q" value="{{ consulta }}" placeholder="Título">
+  <input type="search" name="autor" value="{{ autor }}" placeholder="Autor">
+  <button class="principal">Buscar otra vez</button>
+</form>
+
+{% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
+
+<ul class="resultados-fuentes">
+  {% for candidato in candidatos %}
+  <li class="resultado">
+    {% if candidato.portada %}<img loading="lazy" src="{{ candidato.portada }}" alt="" onerror="this.style.display='none'">{% endif %}
+    <form method="post">
+      <b>{{ candidato.titulo }}</b>
+      <span class="autor">{{ candidato.autores | join(', ') }}</span>
+      <span class="origen">{{ candidato.publicado or '' }}{% if candidato.editorial %} · {{ candidato.editorial }}{% endif %}</span>
+
+      <div class="marcas">
+        <label class="casilla"><input type="checkbox" name="usar_titulo"> Título: <b>{{ candidato.titulo }}</b>
+          <input type="hidden" name="titulo" value="{{ candidato.titulo }}"></label>
+        {% if candidato.autores %}
+        <label class="casilla"><input type="checkbox" name="usar_autores"> Autores: <b>{{ candidato.autores | join(', ') }}</b>
+          {% for a in candidato.autores %}<input type="hidden" name="autor" value="{{ a }}">{% endfor %}</label>
+        {% endif %}
+        {% if candidato.publicado %}
+        <label class="casilla"><input type="checkbox" name="usar_publicado"> Año: <b>{{ candidato.publicado }}</b>
+          <input type="hidden" name="publicado" value="{{ candidato.publicado }}"></label>
+        {% endif %}
+        {% if candidato.editorial %}
+        <label class="casilla"><input type="checkbox" name="usar_editorial"> Editorial: <b>{{ candidato.editorial }}</b>
+          <input type="hidden" name="editorial" value="{{ candidato.editorial }}"></label>
+        {% endif %}
+        {% if candidato.isbn %}
+        <label class="casilla"><input type="checkbox" name="usar_isbn"> ISBN: <b>{{ candidato.isbn }}</b>
+          <input type="hidden" name="isbn" value="{{ candidato.isbn }}"></label>
+        {% endif %}
+        {% if candidato.etiquetas %}
+        <label class="casilla"><input type="checkbox" name="usar_etiquetas"> Añadir etiquetas: <b>{{ candidato.etiquetas | join(', ') }}</b>
+          {% for e in candidato.etiquetas %}<input type="hidden" name="etiqueta" value="{{ e }}">{% endfor %}</label>
+        {% endif %}
+        {% if candidato.portada %}
+        <label class="casilla"><input type="checkbox" name="usar_portada" {% if not libro.tiene_portada %}checked{% endif %}> Traer esta portada
+          <input type="hidden" name="portada" value="{{ candidato.portada }}"></label>
+        {% endif %}
+      </div>
+      <button class="principal">Traer lo marcado</button>
+      <a class="boton suave pequeno" href="{{ candidato.enlace }}" target="_blank" rel="noopener">Ver en Open Library</a>
+    </form>
+  </li>
+  {% else %}
+  <li class="vacio">Open Library no encuentra nada con eso. Prueba con el título en su idioma original.</li>
+  {% endfor %}
+</ul>
+
+<div class="acciones">
+  <a class="boton suave" href="{{ url_for('paginas.libro', id_libro=libro.id) }}">Volver a la ficha</a>
+</div>
+{% endblock %}

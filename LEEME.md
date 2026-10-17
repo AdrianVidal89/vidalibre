@@ -32,9 +32,12 @@ motor va entero aquí dentro.
   uno o en bloque con un filtro ("todos los de Sanderson que no tengan EPUB").
   El formato nuevo **se queda dentro del libro**: un libro puede llevar EPUB,
   AZW3 y MOBI a la vez.
-- **Kindle por USB** (solo en el ordenador): ver el aparato, mandarle libros
-  convirtiéndolos si hace falta, prepararles la miniatura de portada y reponer
-  las portadas de los libros que ya tenía dentro y salían en gris.
+- **Kindle y Kobo por USB** (solo en el ordenador): ver el aparato, mandarle
+  libros convirtiéndolos si hace falta, prepararle al Kindle la miniatura de
+  portada, reponer las portadas grises y **sincronizar por dónde vas leyendo**.
+- **Traer libros nuevos**: búsqueda en Project Gutenberg y Standard Ebooks, y
+  relleno de fichas y portadas desde Open Library.
+- **Aviso de DRM**: si un libro viene con candado, se dice claro y pronto.
 - **OPDS**: KOReader, Moon+ Reader o Panels se conectan a `/opds` y navegan la
   biblioteca y se descargan los libros solos.
 
@@ -56,6 +59,57 @@ hechos con prisa.
 Por dónde vas se guarda en `last_read_positions`, una tabla que el propio
 Calibre ya trae para eso: no hay base de datos aparte, y empiezas en el móvil
 y sigues en el ordenador.
+
+## Sincronizar la lectura con el Kobo y el Kindle
+
+Enchufas el aparato y **gana el más avanzado**: si el Kobo va por delante, se
+actualiza la aplicación; si vas más adelantado en el móvil, se actualiza el
+Kobo. Nunca se retrocede. Antes de aplicar nada se enseña la lista de lo que va
+a cambiar.
+
+Cada aparato guarda esto a su manera y eso marca lo que se puede hacer:
+
+| | Leer su posición | Escribirle la nuestra |
+|---|---|---|
+| **Kobo** | sí (`.kobo/KoboReader.sqlite`) | sí, con copia de seguridad previa de su base de datos |
+| **Kindle antiguo** (`.mbp`) | sí | no |
+| **Kindle moderno** (`.azw3r`) | no: formato cerrado sin descifrar | no |
+
+Cuando no se puede leer la posición, se dice; no se aparenta haber
+sincronizado. Para escribirle al Kindle no hay forma documentada de hacerlo sin
+arriesgarse a dejarle un fichero corrupto, así que no se intenta.
+
+El porcentaje del aparato se convierte en capítulo y página usando el recuento
+de palabras que ya hace el lector, así que el salto cae donde tiene que caer.
+
+## De dónde se pueden traer libros
+
+Dos catálogos, los dos legales:
+
+- **Project Gutenberg**: 75.000 libros de dominio público, con bastante en
+  español. Se busca por su canal OPDS oficial.
+- **Standard Ebooks**: los mismos clásicos reeditados a mano, con una
+  maquetación muy cuidada. Publican en abierto su lista de novedades y es lo
+  que se ofrece.
+
+Y **Open Library** (Internet Archive) para completar fichas: portada, año,
+editorial, ISBN y etiquetas de un libro que ya tengas. Eso son datos, no libros.
+
+No hay más fuentes y no es un olvido: las bibliotecas que reparten libros con
+derechos en vigor quedan fuera.
+
+## El DRM
+
+Vidalibre **no quita el DRM**. En España saltarse esa protección es ilegal
+aunque el libro sea tuyo, así que ese módulo no existe aquí.
+
+Lo que sí hace es **reconocerlo y decirlo**: al subir, al convertir y al abrir
+un libro se mira si trae candado (EPUB con el contenido cifrado, MOBI/AZW3 de
+Amazon, PDF protegido, un `.acsm` que no es un libro sino un vale de descarga)
+y se avisa con una frase clara en vez del error incomprensible de Calibre a
+mitad de faena. Importante: un `encryption.xml` dentro de un EPUB **no** es
+siempre DRM —muchas editoriales lo usan solo para ofuscar las tipografías, que
+es legítimo—, y eso se distingue antes de dar la voz de alarma.
 
 ## Las dos copias
 
@@ -121,6 +175,9 @@ vidalibre/
   ficheros.py     carpetas, nombres, portadas y metadata.opf
   motor.py        ebook-convert y ebook-meta + la cola de trabajos
   dispositivo.py  el Kindle por USB
+  sincronizacion.py  progreso compartido con el Kobo y el Kindle
+  fuentes.py      Gutenberg, Standard Ebooks y Open Library
+  drm.py          reconocer libros con candado
   lector.py       abrir un EPUB y servirlo capítulo a capítulo
   puente.py       los cambios que el portátil le pide al NAS
   servicio.py     las operaciones completas (subir, editar, convertir, enviar)

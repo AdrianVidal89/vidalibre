@@ -2,6 +2,15 @@
 {% block titulo %}Preparar para leer{% endblock %}
 {% block contenido %}
 <div class="formulario estrecho">
+  {% if drm %}
+  <h1>🔒 Este libro tiene candado</h1>
+  <p class="explica">{{ error }}</p>
+  <div class="acciones">
+    <a class="boton suave" href="{{ url_for('paginas.libro', id_libro=libro.id) }}">Volver a la ficha</a>
+  </div>
+</div>
+{% else %}
+<div class="formulario estrecho">
   <h1>Para leerlo aquí hace falta el EPUB</h1>
   <p class="explica">«{{ libro.titulo }}» está en {{ libro.formatos | join(' y ') }}, y el lector
     trabaja con EPUB, que es el formato que fluye y se adapta a la pantalla.
@@ -15,4 +24,5 @@
     <a class="boton suave" href="{{ url_for('paginas.libro', id_libro=libro.id) }}">Volver a la ficha</a>
   </div>
 </div>
+{% endif %}
 {% endblock %}

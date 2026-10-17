@@ -17,6 +17,7 @@
         <a class="boton{% if not en_disco.get(fichero.formato) %} roto{% endif %}"
            href="{{ url_for('paginas.descargar', id_libro=libro.id, formato=fichero.formato|lower) }}">
           Descargar {{ fichero.formato }} <small>{{ fichero.tamano | tamano }}</small>
+          {% if candados.get(fichero.formato, {}).protegido %}<i class="candado" title="Con DRM">🔒</i>{% endif %}
         </a>
       {% else %}
         <p class="vacio">Este libro no tiene ningún fichero.</p>
@@ -63,8 +64,16 @@
     <div class="descripcion">{{ libro.descripcion | html_seguro }}</div>
     {% endif %}
 
+    {% set protegidos = candados.values() | selectattr('protegido') | list %}
+    {% if protegidos %}
+    <p class="aviso aviso">🔒 <b>Este libro viene con candado ({{ protegidos[0].tipo }}).</b>
+      {{ protegidos[0].detalle }} No se puede convertir ni leer aquí, y quitar esa protección no es
+      legal aunque el libro sea tuyo.</p>
+    {% endif %}
+
     <div class="acciones">
       <a class="boton principal" href="{{ url_for('paginas.editar', id_libro=libro.id) }}">Editar propiedades</a>
+      <a class="boton" href="{{ url_for('paginas.ficha_online', id_libro=libro.id) }}">Completar la ficha desde internet</a>
 
       <form method="post" action="{{ url_for('paginas.convertir', id_libro=libro.id) }}" class="en-linea">
         <select name="formato">

@@ -14,7 +14,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from . import ficheros, motor
+from . import drm, ficheros, motor
 from .catalogo import ErrorCatalogo, ahora, ordenar_autor
 
 # De qué formato conviene partir para convertir: el EPUB es el que mejor
@@ -82,6 +82,10 @@ class Biblioteca:
                     datos[clave] = valor
         titulo = (datos.get("titulo") or ruta_origen.stem).strip()
         autores = [a for a in (datos.get("autores") or []) if a.strip()] or ["Autor desconocido"]
+
+        candado = drm.estado(ruta_origen)
+        if candado["protegido"]:
+            avisos.append(drm.mensaje(candado, "abrir"))
 
         with self.catalogo.escribir() as cx:
             # El id hace falta para el nombre de la carpeta, y la carpeta para
@@ -292,6 +296,13 @@ class Biblioteca:
             formato_origen, ruta_origen = self.mejor_origen(libro, formato_destino)
         if not ruta_origen or not ruta_origen.is_file():
             return False, None, "No encuentro ningún fichero de este libro en el disco."
+
+        # Un libro con candado no se puede convertir, y conviene decirlo antes
+        # de tener a alguien esperando a una conversión que iba a fallar con un
+        # error incomprensible de Calibre.
+        candado = drm.estado(ruta_origen)
+        if candado["protegido"]:
+            return False, None, drm.mensaje(candado, "convertir")
 
         if trabajo:
             trabajo.anotar(f"{libro['titulo']}: {formato_origen} → {formato_destino.upper()}")

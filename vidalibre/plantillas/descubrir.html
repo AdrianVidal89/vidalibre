@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block titulo %}Buscar libros nuevos{% endblock %}
+{% block contenido %}
+<h1>Traer libros nuevos</h1>
+<p class="explica">Busca en <b>Project Gutenberg</b> (75.000 libros de dominio público, bastantes en
+  español) y en <b>Standard Ebooks</b> (los mismos clásicos pero reeditados a mano, con una
+  maquetación muy cuidada). Lo que elijas se descarga y entra en la biblioteca como un libro más,
+  con su ficha y su portada.</p>
+
+<form class="buscador-fuentes" method="get" action="{{ url_for('paginas.descubrir') }}">
+  <input type="search" name="q" value="{{ consulta }}" placeholder="Título o autor: Verne, Quijote, Shelley…" autofocus>
+  <select name="idioma">
+    {% for codigo, nombre in [('es','Español'), ('en','Inglés'), ('fr','Francés'), ('de','Alemán'), ('it','Italiano'), ('pt','Portugués'), ('','Cualquier idioma')] %}
+    <option value="{{ codigo }}" {% if idioma == codigo %}selected{% endif %}>{{ nombre }}</option>
+    {% endfor %}
+  </select>
+  <button class="principal">Buscar</button>
+</form>
+
+{% macro ficha_fuente(libro) %}
+<li class="resultado">
+  {% if libro.portada %}
+  <img loading="lazy" src="{{ libro.portada }}" alt="" onerror="this.style.display='none'">
+  {% endif %}
+  <div>
+    <b>{{ libro.titulo }}</b>
+    <span class="autor">{{ libro.autores | join(', ') or 'Autor desconocido' }}</span>
+    <span class="origen">{{ libro.fuente_nombre }}{% if libro.idioma %} · {{ libro.idioma }}{% endif %}{% if libro.otro_idioma %} · <b>en otro idioma</b>{% endif %}</span>
+    {% if libro.descripcion %}<p class="explica">{{ libro.descripcion[:220] }}…</p>{% endif %}
+    <form method="post" action="{{ url_for('paginas.anadir_de_fuente') }}">
+      <input type="hidden" name="fuente" value="{{ libro.fuente }}">
+      <input type="hidden" name="id" value="{{ libro.id }}">
+      <input type="hidden" name="titulo" value="{{ libro.titulo }}">
+      {% for autor in libro.autores %}<input type="hidden" name="autor" value="{{ autor }}">{% endfor %}
+      {% if libro.formatos and libro.formatos.epub %}
+      <input type="hidden" name="epub" value="{{ libro.formatos.epub }}">
+      {% endif %}
+      <button>Añadir a la biblioteca</button>
+      {% if libro.enlace %}
+      <a class="boton suave pequeno" href="{{ libro.enlace }}" target="_blank" rel="noopener">Verlo en su web</a>
+      {% endif %}
+    </form>
+  </div>
+</li>
+{% endmacro %}
+
+{% if consulta %}
+  <h2>{{ resultados | length }} resultado(s) para «{{ consulta }}»</h2>
+  <ul class="resultados-fuentes">
+    {% for libro in resultados %}{{ ficha_fuente(libro) }}{% else %}
+    <li class="vacio">No hay nada con ese nombre. Prueba con el apellido del autor, o cambia de idioma.</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <h2>Lo último de Standard Ebooks</h2>
+  <p class="explica">Clásicos de dominio público reeditados a mano. Están en inglés.</p>
+  <ul class="resultados-fuentes">
+    {% for libro in novedades %}{{ ficha_fuente(libro) }}{% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}

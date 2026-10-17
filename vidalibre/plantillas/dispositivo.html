@@ -1,30 +1,53 @@
 {% extends "base.html" %}
-{% block titulo %}Kindle{% endblock %}
+{% block titulo %}Aparatos{% endblock %}
 {% block contenido %}
-<h1>Kindle conectado</h1>
-{% if not kindles %}
-  <p class="vacio">No veo ningún Kindle enchufado. Conéctalo por el cable, desbloquéalo y recarga esta página.</p>
+<h1>Lector conectado</h1>
+{% if not aparatos %}
+  <p class="vacio">No veo ningún Kindle ni ningún Kobo enchufado. Conéctalo por el cable,
+    desbloquéalo y recarga esta página.</p>
 {% else %}
-  {% for kindle in kindles %}
+  {% for aparato in aparatos %}
   <section class="aparato">
-    <h2>{{ kindle.nombre }}</h2>
+    <h2>{{ aparato.nombre }} <small class="tipo">{{ aparato.tipo | upper }}</small></h2>
     <p class="explica">
-      {{ kindle.libros }} libros dentro ·
-      {% if kindle.bytes_libres %}{{ kindle.bytes_libres | tamano }} libres de {{ kindle.bytes_totales | tamano }} ·{% endif %}
-      <code>{{ kindle.ruta }}</code>
+      {{ aparato.libros }} libros dentro ·
+      {% if aparato.bytes_libres %}{{ aparato.bytes_libres | tamano }} libres de {{ aparato.bytes_totales | tamano }}{% endif %}
     </p>
 
+    <div class="acciones">
+      <a class="boton principal" href="{{ url_for('paginas.ver_sincronizacion', ruta=aparato.ruta) }}">
+        Sincronizar por dónde voy leyendo
+      </a>
+      {% if aparato.tipo == 'kindle' %}
+      <form method="post" action="{{ url_for('paginas.portadas_del_aparato') }}"
+            data-confirmar="Recorre todos los libros del Kindle regenerando su miniatura. Puede tardar. ¿Sigo?">
+        <input type="hidden" name="kindle" value="{{ aparato.ruta }}">
+        <button class="suave">Reponer las portadas grises</button>
+      </form>
+      {% endif %}
+    </div>
+
     <form method="post" action="{{ url_for('paginas.enviar_al_aparato') }}" class="envio">
-      <input type="hidden" name="kindle" value="{{ kindle.ruta }}">
+      <input type="hidden" name="ruta" value="{{ aparato.ruta }}">
+      <input type="hidden" name="kindle" value="{{ aparato.ruta }}">
       <div class="pareja">
-        <label>Formato
-          <select name="formato"><option value="azw3">AZW3 (Kindle modernos)</option>
-            <option value="mobi">MOBI (Kindle antiguos)</option></select>
+        <label>Mandarle libros en
+          <select name="formato">
+            {% if aparato.tipo == 'kobo' %}
+            <option value="epub">EPUB (lo que mejor lee el Kobo)</option>
+            <option value="pdf">PDF</option>
+            {% else %}
+            <option value="azw3">AZW3 (Kindle modernos)</option>
+            <option value="mobi">MOBI (Kindle antiguos)</option>
+            {% endif %}
+          </select>
         </label>
         <label>&nbsp;<button class="principal">Enviar los marcados</button></label>
       </div>
       <p class="explica">Se convierte lo que haga falta (y el formato nuevo se queda también en la
-        biblioteca), se copia al aparato y se le prepara la miniatura de portada.</p>
+        biblioteca){% if aparato.tipo == 'kindle' %}, se copia al aparato y se le prepara la
+        miniatura de portada{% else %} y se deja en una carpeta propia del Kobo, que lo indexa solo
+        al desconectarlo{% endif %}.</p>
       <ul class="elegir">
         {% for libro in ultimos %}
         <li>
@@ -39,21 +62,15 @@
       <p class="explica">¿No está el que buscas? Búscalo en la biblioteca y envíalo desde su ficha.</p>
     </form>
 
-    <form method="post" action="{{ url_for('paginas.portadas_del_aparato') }}"
-          data-confirmar="Recorre todos los libros del Kindle regenerando su miniatura. Puede tardar. ¿Sigo?">
-      <input type="hidden" name="kindle" value="{{ kindle.ruta }}">
-      <button class="suave">Reponer las portadas de todos los libros del Kindle</button>
-    </form>
+    <details class="mas">
+      <summary>Lo que ya hay dentro ({{ contenido.get(aparato.ruta, []) | length }})</summary>
+      <ul class="formatos-lista">
+        {% for libro in contenido.get(aparato.ruta, []) %}
+        <li><b>{{ libro.formato | upper }}</b> · {{ libro.nombre }} <small>{{ libro.bytes | tamano }}</small></li>
+        {% endfor %}
+      </ul>
+    </details>
   </section>
   {% endfor %}
-
-  <details class="mas">
-    <summary>Lo que ya hay dentro del Kindle ({{ libros_dentro | length }})</summary>
-    <ul class="formatos-lista">
-      {% for libro in libros_dentro %}
-      <li><b>{{ libro.formato | upper }}</b> · {{ libro.nombre }} <small>{{ libro.bytes | tamano }}</small></li>
-      {% endfor %}
-    </ul>
-  </details>
 {% endif %}
 {% endblock %}

@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import (Blueprint, Response, abort, current_app, jsonify, redirect,
                    render_template, request, send_file, url_for)
 
-from . import ficheros, lector, puede_escribir
+from . import drm, ficheros, lector, puede_escribir
 from .lector import CacheLibros, ErrorLector
 
 paginas_lector = Blueprint("lector", __name__)
@@ -74,6 +74,11 @@ def leer(id_libro):
         return render_template("lector_preparar.html", libro=datos)
 
     _preparar_cache()
+    candado = drm.estado(ruta)
+    if candado["protegido"]:
+        return render_template("lector_preparar.html", libro=datos,
+                               error=drm.mensaje(candado, "abrir"), drm=True)
+
     try:
         libro = _LIBROS.abrir(ruta)
     except ErrorLector as ex:

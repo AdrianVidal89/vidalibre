@@ -39,7 +39,7 @@
     <a href="{{ url_for('paginas.estantes', tipo='autores') }}" {% if request.endpoint == 'paginas.estantes' %}class="activo"{% endif %}>
       <i aria-hidden="true">🗂️</i><span>Estantes</span></a>
     <a href="{{ url_for('paginas.subir') }}" {% if request.endpoint == 'paginas.subir' %}class="activo"{% endif %}>
-      <i aria-hidden="true">⬆️</i><span>Subir</span></a>
+      <i aria-hidden="true">➕</i><span>Añadir</span></a>
     <a href="{{ url_for('paginas.convertir_en_bloque') }}" {% if request.endpoint == 'paginas.convertir_en_bloque' %}class="activo"{% endif %}>
       <i aria-hidden="true">🔄</i><span>Convertir</span></a>
     {% if ajustes.con_dispositivo %}

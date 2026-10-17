@@ -66,6 +66,8 @@ pre { background: var(--tinta); color: var(--papel); padding: 12px; border-radiu
   font-size: .9rem; white-space: nowrap;
 }
 .menu a:hover { background: var(--panel-alto); color: var(--texto); }
+/* Los iconos son para la barra de abajo del móvil; en pantalla grande estorban. */
+.menu a i { display: none; }
 .menu a.activo { background: var(--acento); color: #231503; font-weight: 600; }
 .punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
   background: var(--acento); animation: latir 1.4s infinite; vertical-align: middle; }
@@ -304,7 +306,7 @@ legend { color: var(--acento); font-size: .85rem; padding: 0 6px; }
     padding: 5px 2px; min-height: 50px; border-radius: 12px;
     font-size: .64rem; letter-spacing: .01em; position: relative;
   }
-  .menu a i { font-size: 1.22rem; font-style: normal; line-height: 1; }
+  .menu a i { display: block; font-size: 1.22rem; font-style: normal; line-height: 1; }
   .menu a.activo { background: transparent; color: var(--acento); font-weight: 600; }
   .menu a .punto { position: absolute; top: 4px; right: 50%; margin-right: -16px; }
 
@@ -358,3 +360,34 @@ legend { color: var(--acento); font-size: .85rem; padding: 0 6px; }
 @media (display-mode: standalone) {
   .cabecera { padding-top: calc(env(safe-area-inset-top) + 12px); }
 }
+
+/* Comparativa de progreso al sincronizar con un lector. */
+.comparativa li { justify-content: space-between; }
+.comparativa .numeros { color: var(--suave); font-size: .85rem; }
+.comparativa .numeros b { color: var(--acento); font-variant-numeric: tabular-nums; }
+.aparato h2 .tipo { font-size: .62rem; letter-spacing: .08em; color: var(--suave);
+  border: 1px solid var(--borde); border-radius: 6px; padding: 2px 6px; vertical-align: middle; }
+
+/* ------------------------------------------------ traer libros de fuera */
+.buscador-fuentes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+.buscador-fuentes input[type=search] { flex: 1 1 240px; min-height: 44px; }
+.buscador-fuentes select, .buscador-fuentes button { min-height: 44px; }
+.resultados-fuentes { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.resultado {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--panel); border: 1px solid var(--borde);
+  border-radius: var(--radio); padding: 14px 16px;
+}
+.resultado img { width: 72px; border-radius: 8px; flex: 0 0 auto; }
+.resultado b { display: block; font-size: 1rem; }
+.resultado .autor { display: block; color: var(--acento); font-size: .88rem; }
+.resultado .origen { display: block; color: var(--suave); font-size: .76rem; margin-bottom: 8px; }
+.resultado form { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.resultado .marcas { display: grid; gap: 4px; margin: 10px 0; width: 100%; }
+.resultado .marcas .casilla { margin: 0; font-size: .85rem; color: var(--texto); }
+.resultado .marcas b { display: inline; font-weight: 600; color: var(--suave); }
+@media (max-width: 760px) {
+  .resultado { flex-direction: column; }
+  .resultado form { flex-direction: column; align-items: stretch; }
+}
+.candado { font-style: normal; margin-left: auto; }
