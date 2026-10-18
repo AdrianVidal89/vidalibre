@@ -17,14 +17,17 @@
       <span class="autor">{{ libro.autores | join(', ') }}</span>
       {% if en_marcha and leido %}
         <span class="cuanto">{{ (leido * 100) | round | int }}% leído</span>
-      {% else %}
-        <span class="formatos">
-          {% for formato in libro.formatos %}<i>{{ formato }}</i>{% endfor %}
-          {% if libro.serie %}<em title="{{ libro.serie }}">{{ libro.serie }} · {{ libro.indice_serie | round(1) }}</em>{% endif %}
-        </span>
       {% endif %}
     </span>
   </a>
+  {% if not (en_marcha and leido) %}
+  {# Fuera del enlace del libro: un enlace no puede ir dentro de otro. #}
+  <span class="formatos">
+    {% for formato in libro.formatos %}<i>{{ formato }}</i>{% endfor %}
+    {% if libro.serie %}<a class="serie" href="{{ url_for('paginas.inicio', serie=libro.serie, orden='serie') }}"
+       title="Ver la saga {{ libro.serie }} en orden">{{ libro.serie }} · {{ libro.indice_serie | round(1) }}</a>{% endif %}
+  </span>
+  {% endif %}
 </li>
 {% endmacro %}
 

@@ -14,7 +14,7 @@
     {% endfor %}
     {% if agrupar == 'nada' %}
     <select onchange="location = this.value" aria-label="Ordenar">
-      {% for clave, etiqueta in [('reciente','Lo último'), ('titulo','Título'), ('autor','Autor'), ('publicacion','Publicación'), ('modificado','Modificado'), ('antiguo','Lo más viejo')] %}
+      {% for clave, etiqueta in [('reciente','Lo último'), ('titulo','Título'), ('autor','Autor'), ('serie','Serie'), ('publicacion','Publicación'), ('modificado','Modificado'), ('antiguo','Lo más viejo')] %}
       <option value="{{ url_for('paginas.inicio', orden=clave) }}"
               {% if orden == clave %}selected{% endif %}>{{ etiqueta }}</option>
       {% endfor %}
