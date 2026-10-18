@@ -350,7 +350,7 @@ legend { color: var(--acento); font-size: .85rem; padding: 0 6px; }
   list-style: none; margin: 0; padding: 0; display: grid; gap: 20px 16px;
   grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
 }
-.tarjeta a { text-decoration: none; display: flex; flex-direction: column; gap: 6px; }
+.tarjeta > a { text-decoration: none; display: flex; flex-direction: column; gap: 6px; }
 .tarjeta img {
   width: 100%; object-fit: cover; border-radius: var(--radio-chico);
   background: var(--panel-alto); box-shadow: var(--sombra);
@@ -510,7 +510,7 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .leido i { display: block; height: 100%; background: var(--acento); }
 
-.tarjeta a { text-decoration: none; display: flex; flex-direction: column; gap: 6px; }
+.tarjeta > a { text-decoration: none; display: flex; flex-direction: column; gap: 6px; }
 .tarjeta .cubierta { transition: transform var(--t-corto) var(--salida); }
 .tarjeta .titulo {
   font-size: .88rem; font-weight: 600; line-height: 1.25;
@@ -520,15 +520,16 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: .78rem; color: var(--suave);
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
-.tarjeta .formatos { display: flex; gap: 5px; flex-wrap: wrap; font-size: .66rem; }
+.tarjeta .formatos { display: flex; gap: 5px; flex-wrap: wrap; font-size: .66rem; margin-top: 6px; }
 .tarjeta .formatos i {
   font-style: normal; color: var(--suave); border: 1px solid var(--borde);
   border-radius: 5px; padding: 0 5px; letter-spacing: .03em;
 }
-.tarjeta .formatos em {
-  font-style: normal; color: var(--acento-apagado); max-width: 100%;
+.tarjeta .formatos .serie {
+  color: var(--acento-apagado); max-width: 100%; text-decoration: none;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.tarjeta .formatos .serie:hover { text-decoration: underline; }
 
 /* ---------------------------------------------------------------- ESCAPARATE
    El libro destacado de la portada. Es la única pieza grande de la app, y por
@@ -605,7 +606,7 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Fila de «continuar leyendo»: tarjetas anchas con la barra de progreso. */
 .carrusel.en-marcha { grid-auto-columns: 300px; }
-.en-marcha .tarjeta a { flex-direction: row; gap: 14px; align-items: center; }
+.en-marcha .tarjeta > a { flex-direction: row; gap: 14px; align-items: center; }
 .en-marcha .cubierta { width: 74px; flex: 0 0 auto; }
 .en-marcha .tarjeta > a > span:last-child { min-width: 0; }
 .en-marcha .cuanto {

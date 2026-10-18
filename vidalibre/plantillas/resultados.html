@@ -20,7 +20,7 @@
          href="{{ url_for('paginas.inicio', **dict(request.args.to_dict(), formato=formato.nombre, pagina=1)) }}">{{ formato.nombre }} <i>{{ formato.libros }}</i></a>
     {% endfor %}
     <select onchange="location = this.value" aria-label="Ordenar por">
-      {% for clave, etiqueta in [('reciente','Lo último'), ('titulo','Título'), ('autor','Autor'), ('publicacion','Publicación'), ('modificado','Modificado'), ('antiguo','Lo más viejo')] %}
+      {% for clave, etiqueta in [('reciente','Lo último'), ('titulo','Título'), ('autor','Autor'), ('serie','Serie'), ('publicacion','Publicación'), ('modificado','Modificado'), ('antiguo','Lo más viejo')] %}
       <option value="{{ url_for('paginas.inicio', **dict(request.args.to_dict(), orden=clave, pagina=1)) }}"
               {% if orden == clave %}selected{% endif %}>{{ etiqueta }}</option>
       {% endfor %}

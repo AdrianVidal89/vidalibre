@@ -45,6 +45,12 @@ ORDENES = {
     "autor": "libros.author_sort COLLATE NOCASE ASC, libros.series_index ASC",
     "publicacion": "libros.pubdate DESC",
     "modificado": "libros.last_modified DESC",
+    # Cada saga junta y del primero al último; los libros sin serie, al final.
+    "serie": "(SELECT s.sort FROM books_series_link bsl JOIN series s ON s.id = bsl.series "
+             "WHERE bsl.book = libros.id LIMIT 1) IS NULL, "
+             "(SELECT s.sort FROM books_series_link bsl JOIN series s ON s.id = bsl.series "
+             "WHERE bsl.book = libros.id LIMIT 1) COLLATE NOCASE ASC, "
+             "libros.series_index ASC, libros.sort COLLATE NOCASE ASC",
 }
 
 
