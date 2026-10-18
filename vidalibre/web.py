@@ -221,99 +221,118 @@ def _error_catalogo(ex):
 
 
 # -------------------------------------------------------------------- portada
-def _estante(titulo, libros, enlace=None, cuantos=None, clase=""):
-    """Una fila de portadas de la portada. Vacía no se pinta."""
-    if not libros:
-        return None
-    return {"titulo": titulo, "libros": libros, "enlace": enlace,
-            "cuantos": cuantos, "clase": clase}
+GRUPOS = {
+    "nada": "Todos",
+    "genero": "Género",
+    "autor": "Autor",
+    "ano": "Año",
+}
 
 
-def _portada():
-    """La portada: un libro destacado y unas cuantas filas de estantes.
-
-    Se arma a base de consultas cortas en vez de una gorda: el catálogo es un
-    SQLite en el NAS y le sienta mejor así. Cualquier fila que salga vacía
-    desaparece sola, para que una biblioteca recién empezada no enseñe una
-    página llena de huecos.
-    """
+def _encabezado():
+    """Lo de arriba de la biblioteca: el libro a medias y las dos filas."""
     cat = catalogo()
-    resumen = cat.resumen()
 
-    # Continuar leyendo: lo que está a medias, lo último primero.
-    empezados = lector.en_marcha(cat, limite=12)
-    libros_empezados = []
-    for apunte in empezados:
+    # Lo que tienes a medias. La posición ya viene resuelta: al sincronizar con
+    # el Kobo gana la más avanzada, así que aquí no hay que volver a decidir.
+    empezados = []
+    for apunte in lector.en_marcha(cat, limite=12):
         datos = cat.libro(apunte["id"])
         if datos:
             datos["fraccion"] = apunte["fraccion"]
-            libros_empezados.append(datos)
+            empezados.append(datos)
 
     recientes, _ = cat.libros(orden="reciente", por_pagina=18)
 
-    # El destacado: el libro que tiene a medias, y si no hay ninguno, el
-    # último que entró en la biblioteca. Siempre hay algo que enseñar.
-    destacado = libros_empezados[0] if libros_empezados else (recientes[0] if recientes else None)
+    destacado = empezados[0] if empezados else (recientes[0] if recientes else None)
     if destacado:
-        destacado = cat.libro(destacado["id"]) or destacado
-        destacado["fraccion"] = next(
-            (l["fraccion"] for l in libros_empezados if l["id"] == destacado["id"]), 0.0
-        )
+        destacado = {**(cat.libro(destacado["id"]) or destacado),
+                     "fraccion": next((l["fraccion"] for l in empezados
+                                       if l["id"] == destacado["id"]), 0.0)}
+    return {"destacado": destacado, "empezados": empezados, "recientes": recientes}
 
-    estantes = []
-    hecho = _estante("Continuar leyendo", libros_empezados, clase="en-marcha")
-    if hecho:
-        estantes.append(hecho)
-    hecho = _estante("Lo último que has añadido", recientes,
-                     url_for("paginas.inicio", todo=1, orden="reciente"), resumen["libros"])
-    if hecho:
-        estantes.append(hecho)
 
-    # Un estante por género, de los que tienen libros suficientes para llenarlo.
-    generos = [g for g in cat.categoria("etiquetas", minimo=3)]
-    generos.sort(key=lambda g: -g["libros"])
-    for genero in generos[:5]:
-        libros, total = cat.libros(etiqueta=genero["nombre"], orden="titulo", por_pagina=18)
-        hecho = _estante(genero["nombre"], libros,
-                         url_for("paginas.inicio", etiqueta=genero["nombre"]), total)
-        if hecho:
-            estantes.append(hecho)
+def _grupos(agrupar, pagina=1, por_pagina=10, por_grupo=18):
+    """La biblioteca partida en estantes: por género, por autor o por año.
 
-    series = sorted(cat.categoria("series", minimo=2), key=lambda s: -s["libros"])[:6]
-    for serie in series[:2]:
-        libros, total = cat.libros(serie=serie["nombre"], orden="autor", por_pagina=18)
-        hecho = _estante(f"Serie: {serie['nombre']}", libros,
-                         url_for("paginas.inicio", serie=serie["nombre"]), total)
-        if hecho:
-            estantes.append(hecho)
+    Se pagina **por grupos**, no por libros: con 99 autores, enseñarlos todos
+    de golpe serían 99 consultas y una página interminable. Los grupos salen
+    de mayor a menor, que es el orden en el que se buscan.
+    """
+    cat = catalogo()
+    if agrupar == "genero":
+        crudos = [{"nombre": g["nombre"], "libros": g["libros"],
+                   "filtro": {"etiqueta": g["nombre"]}}
+                  for g in cat.categoria("etiquetas", minimo=1)]
+    elif agrupar == "autor":
+        crudos = [{"nombre": a["nombre"], "libros": a["libros"],
+                   "filtro": {"autor": a["nombre"]}}
+                  for a in cat.categoria("autores", minimo=1)]
+    elif agrupar == "ano":
+        crudos = [{"nombre": f"Los {d['decada']}",
+                   "detalle": f"{d['decada']}–{d['decada'] + 9}",
+                   "libros": d["libros"], "filtro": {"decada": d["decada"]}}
+                  for d in cat.decadas(minimo=1)]
+    else:
+        return [], 1, 1
 
-    # Mosaicos: los grupos que se enseñan como bloque con una pila de portadas.
-    autores = sorted(cat.categoria("autores", minimo=2), key=lambda a: -a["libros"])[:8]
-    for autor in autores:
-        autor["libros_muestra"] = cat.libros(
-            autor=autor["nombre"], orden="titulo", por_pagina=4)[0]
-        autor["url"] = url_for("paginas.inicio", autor=autor["nombre"])
+    if agrupar != "ano":
+        crudos.sort(key=lambda g: (-g["libros"], g["nombre"].lower()))
 
-    decadas = []
-    for decada in cat.decadas(minimo=2)[:8]:
-        decadas.append({
-            "nombre": f"Años {str(decada['decada'])[-2:]}"
-                      if decada["decada"] >= 1900 else f"{decada['decada']}s",
-            "detalle": f"{decada['decada']}–{decada['decada'] + 9}",
-            "libros": decada["libros"],
-            "libros_muestra": cat.libros_de_decada(decada["decada"], limite=4),
-            "url": url_for("paginas.inicio", decada=decada["decada"]),
-        })
+    total_grupos = len(crudos)
+    paginas_totales = max(1, -(-total_grupos // por_pagina))
+    pagina = max(1, min(pagina, paginas_totales))
+    trozo = crudos[(pagina - 1) * por_pagina: pagina * por_pagina]
 
-    return render_template(
-        "portada.html",
-        seccion="portada",
-        destacado=destacado,
-        estantes=estantes,
-        autores=autores,
-        decadas=decadas,
-        resumen=resumen,
-    )
+    for grupo in trozo:
+        grupo["libros_muestra"], _ = cat.libros(
+            orden="titulo", por_pagina=por_grupo, **grupo["filtro"])
+        grupo["url"] = url_for("paginas.inicio", todo=1, **grupo["filtro"])
+    return trozo, pagina, paginas_totales
+
+
+def _contexto_catalogo():
+    """La parte de abajo: todos los libros, sueltos o repartidos en estantes."""
+    agrupar = request.args.get("agrupar", "nada")
+    if agrupar not in GRUPOS:
+        agrupar = "nada"
+    pagina = max(1, request.args.get("pagina", 1, type=int))
+    # Alfabético por defecto, no «lo último»: esa fila ya está justo encima y
+    # si no, las dos empiezan con los mismos libros y parece un error.
+    orden = request.args.get("orden", "titulo")
+
+    if agrupar == "nada":
+        por_pagina = ajustes().por_pagina
+        libros, total = catalogo().libros(orden=orden, pagina=pagina, por_pagina=por_pagina)
+        return {
+            "agrupar": agrupar, "grupos_posibles": GRUPOS, "orden": orden,
+            "libros": libros, "total": total, "pagina": pagina,
+            "paginas_totales": max(1, -(-total // por_pagina)),
+            "lecturas": lector.posiciones_de_libros(
+                catalogo(), [l["id"] for l in libros]),
+            "grupos": [],
+        }
+
+    grupos, pagina, paginas_totales = _grupos(agrupar, pagina)
+    return {
+        "agrupar": agrupar, "grupos_posibles": GRUPOS, "orden": orden,
+        "libros": [], "total": catalogo().resumen()["libros"], "pagina": pagina,
+        "paginas_totales": paginas_totales, "lecturas": {}, "grupos": grupos,
+    }
+
+
+@paginas.route("/catalogo")
+def catalogo_parcial():
+    """Solo el trozo de abajo de la biblioteca.
+
+    Al cambiar el agrupamiento se pide esto y se cambia ese trozo en su sitio,
+    sin recargar la página entera ni perder el desplazamiento.
+    """
+    try:
+        contexto = _contexto_catalogo()
+    except ErrorCatalogo as ex:
+        return render_template("sin_biblioteca.html", error=str(ex)), 503
+    return render_template("_catalogo.html", **contexto)
 
 
 # ----------------------------------------------------------------- biblioteca
@@ -322,14 +341,25 @@ def inicio():
     filtros = filtros_de_la_url()
     orden = request.args.get("orden", "reciente")
     pagina = max(1, request.args.get("pagina", 1, type=int))
-    # Sin filtros ni búsqueda, la raíz es la portada: la rejilla entera de 146
-    # libros no es forma de recibir a nadie. Con cualquier filtro puesto (o
-    # pulsando «Biblioteca», que pone todo=1) se pasa a la rejilla de siempre.
-    if not any(filtros.values()) and pagina == 1 and not request.args.get("todo"):
-        try:
-            return _portada()
-        except ErrorCatalogo as ex:
-            return render_template("sin_biblioteca.html", error=str(ex)), 503
+    hay_filtro = any(filtros.values())
+
+    try:
+        if not hay_filtro:
+            # La biblioteca de entrada: lo que tienes a medias, lo último que
+            # has añadido y debajo todos los libros (sueltos o agrupados).
+            return render_template(
+                "biblioteca.html",
+                seccion="biblioteca",
+                chips=[],
+                resumen=catalogo().resumen(),
+                **_encabezado(),
+                **_contexto_catalogo(),
+            )
+    except ErrorCatalogo as ex:
+        return render_template("sin_biblioteca.html", error=str(ex)), 503
+
+    # Con un filtro puesto no hay encabezado que valga: lo que se quiere ver es
+    # el resultado de la búsqueda y nada más.
     por_pagina = ajustes().por_pagina
     try:
         libros, total = catalogo().libros(
@@ -338,7 +368,6 @@ def inicio():
     except ErrorCatalogo as ex:
         return render_template("sin_biblioteca.html", error=str(ex)), 503
 
-    paginas_totales = max(1, -(-total // por_pagina))
     etiquetas_filtro = {
         "busqueda": ("Buscando", "q"), "autor": ("Autor", "autor"),
         "serie": ("Serie", "serie"), "etiqueta": ("Etiqueta", "etiqueta"),
@@ -352,14 +381,14 @@ def inicio():
         for clave, valor in filtros.items() if valor
     ]
     return render_template(
-        "biblioteca.html",
+        "resultados.html",
         seccion="biblioteca",
         chips=chips,
         lecturas=lector.posiciones_de_libros(catalogo(), [l["id"] for l in libros]),
         libros=libros,
         total=total,
         pagina=pagina,
-        paginas_totales=paginas_totales,
+        paginas_totales=max(1, -(-total // por_pagina)),
         orden=orden,
         filtros={k: v for k, v in filtros.items() if v},
         resumen=catalogo().resumen(),

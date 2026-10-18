@@ -91,7 +91,47 @@
     }
   }
 
-  // 5) Marcar y desmarcar todos los libros de una lista de envío.
+  // 5) Agrupar la biblioteca sin recargar la página entera.
+  //    Los enlaces funcionan igual sin JavaScript (llevan a la misma página con
+  //    ?agrupar=…); esto solo evita el salto y la espera, que con el escaparate
+  //    y las dos filas de arriba se nota mucho.
+  var catalogo = document.querySelector("[data-catalogo]");
+  if (catalogo && window.fetch && window.history && history.pushState) {
+    catalogo.addEventListener("click", function (evento) {
+      var enlace = evento.target.closest("[data-agrupar], .paginacion a");
+      if (!enlace || evento.metaKey || evento.ctrlKey || evento.shiftKey) return;
+      if (enlace.getAttribute("aria-current")) { evento.preventDefault(); return; }
+      evento.preventDefault();
+      cargar(enlace.getAttribute("href"), true);
+    });
+
+    // El botón de atrás del navegador tiene que deshacer el cambio.
+    window.addEventListener("popstate", function () { cargar(location.href, false); });
+
+    function cargar(destino, apuntar) {
+      var url = new URL(destino, location.href);
+      catalogo.classList.add("cargando");
+      fetch(url.pathname === "/" ? "/catalogo" + url.search : destino,
+            { headers: { "X-Requested-With": "fetch" } })
+        .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+        .then(function (html) {
+          catalogo.innerHTML = html;
+          catalogo.classList.remove("cargando");
+          if (apuntar) history.pushState({}, "", destino);
+          // Al cambiar de página de grupos, el principio de la sección.
+          if (url.searchParams.get("pagina")) {
+            catalogo.scrollIntoView({ block: "start", behavior: "smooth" });
+          }
+        })
+        .catch(function () {
+          // Si falla la red, que al menos navegue como siempre.
+          catalogo.classList.remove("cargando");
+          location.href = destino;
+        });
+    }
+  }
+
+  // 6) Marcar y desmarcar todos los libros de una lista de envío.
   document.querySelectorAll(".envio").forEach(function (formulario) {
     var casillas = formulario.querySelectorAll('input[name="ids"]');
     if (!casillas.length) return;

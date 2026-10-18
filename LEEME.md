@@ -17,14 +17,12 @@ motor va entero aquí dentro.
   noche y negro), índice, búsqueda dentro del libro, cuánto queda del capítulo
   y memoria de por dónde ibas, compartida entre el móvil, la tablet y el
   ordenador.
-- **Portada de entrada**: lo primero que se ve no es la lista entera, sino un
-  libro destacado (el que tienes a medias), la fila de **continuar leyendo**,
-  lo último que entró, un estante por género y los grupos por **autor** y por
-  **época**. La rejilla completa, con sus filtros y su orden, sigue estando en
-  «Biblioteca».
-- **Biblioteca**: rejilla de portadas con lo leído de cada libro, buscador que
-  mira título, autor, serie, etiquetas, editorial y hasta la descripción, y
-  estantes por autor, serie, etiqueta, editorial e idioma.
+- **Biblioteca**: arriba, el libro que tienes **a medias**, la fila de
+  *continuar leyendo* y lo último que entró. Debajo, **todos los libros**, que
+  se pueden **agrupar por género, autor o año** con un toque: al pulsar se
+  rehace solo esa parte, sin recargar la página ni perder el sitio. Buscador
+  que mira título, autor, serie, etiquetas, editorial y hasta la descripción,
+  y estantes por autor, serie, etiqueta, editorial e idioma.
 - **Ficha de libro** con la sinopsis, los datos en fichas y filas de **obras
   relacionadas**: de la misma serie, del mismo autor y del mismo género.
 - **Subir libros**: EPUB, MOBI, AZW3, PDF, FB2, DOCX, CBZ… De cada fichero lee
@@ -43,7 +41,9 @@ motor va entero aquí dentro.
   libros convirtiéndolos si hace falta, prepararle al Kindle la miniatura de
   portada, reponer las portadas grises y **sincronizar por dónde vas leyendo**.
   Si el lector está enchufado pero el escritorio no lo ha abierto, se detecta
-  y se ofrece **conectarlo desde la propia aplicación**.
+  y se ofrece **conectarlo desde la propia aplicación**. La pestaña **Mi
+  lector** sale siempre: en la copia del NAS, para explicar que eso se hace en
+  el ordenador y llevarte allí de un clic.
 - **Traer libros nuevos**: búsqueda en Project Gutenberg y Standard Ebooks, y
   relleno de fichas, **sinopsis** y portadas desde Open Library.
 - **Aviso de DRM**: si un libro viene con candado, se dice claro y pronto.

@@ -1,11 +1,22 @@
 {% extends "base.html" %}
 {% block titulo %}Mi lector{% endblock %}
 {% block contenido %}
-<h1>El lector se conecta en el ordenador, no aquí</h1>
-<p class="explica">Esta copia de {{ nombre_app }} corre en el NAS, y un servidor no ve los cables USB
-  de tu portátil. Para enviar libros al Kindle o al Kobo, reponerle las portadas o sincronizar por
-  dónde vas leyendo, abre {{ nombre_app }} <b>en el ordenador donde lo tengas enchufado</b>: es la
-  misma biblioteca y los mismos libros.</p>
-<p class="explica">En el portátil se abre con el icono de {{ nombre_app }} o escribiendo
-  <code>vidalibre</code> en una terminal.</p>
+<h1>El lector se enchufa al ordenador, y esta copia es la del NAS</h1>
+
+<section class="caja destacada">
+  <p>Estás en <b>{{ nombre_app }} del NAS</b>, y un servidor no ve los cables USB de tu
+    ordenador. Da igual que el Kobo esté perfectamente conectado: desde aquí no se puede ver.</p>
+  <p class="explica">Para enchufar el Kobo o el Kindle —mandarle libros, reponerle las portadas o
+    sincronizar por dónde vas leyendo— hay que abrir {{ nombre_app }} <b>en el ordenador donde
+    tienes el cable puesto</b>. Es la misma biblioteca y los mismos libros.</p>
+  <div class="acciones">
+    <a class="boton principal" href="http://127.0.0.1:8484/dispositivo">Abrir en este ordenador</a>
+  </div>
+  <p class="explica">Ese botón solo funciona si estás navegando <b>desde el portátil</b> y
+    {{ nombre_app }} está arrancado allí. Si no se abre, lánzalo primero: icono de
+    <b>{{ nombre_app }}</b> en el menú de aplicaciones, o <code>vidalibre</code> en una terminal.</p>
+</section>
+
+<p class="explica">Desde el iPhone o el iPad no hay nada que hacer aquí: el lector se conecta por
+  cable al ordenador, no a ellos.</p>
 {% endblock %}

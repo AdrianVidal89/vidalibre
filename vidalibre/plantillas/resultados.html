@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_rejilla.html" import rejilla %}
+{% block titulo %}{{ ajustes.titulo }} — {{ total }} libros{% endblock %}
+{% block contenido %}
+<div class="titulo-barra">
+  <h1>Buscando en la biblioteca</h1>
+  <span class="cuantos">{{ total }} libro{{ '' if total == 1 else 's' }}</span>
+</div>
+
+<div class="barra">
+  <div class="filtros">
+    {% for chip in chips %}
+      <a class="chip quitar" href="{{ chip.url }}">{{ chip.texto }} <b>×</b></a>
+    {% endfor %}
+    <a class="chip" href="{{ url_for('paginas.inicio') }}">quitar todo</a>
+  </div>
+  <div class="ordenar">
+    {% for formato in formatos %}
+      <a class="chip {% if request.args.get('formato') == formato.nombre %}activo{% endif %}"
+         href="{{ url_for('paginas.inicio', **dict(request.args.to_dict(), formato=formato.nombre, pagina=1)) }}">{{ formato.nombre }} <i>{{ formato.libros }}</i></a>
+    {% endfor %}
+    <select onchange="location = this.value" aria-label="Ordenar por">
+      {% for clave, etiqueta in [('reciente','Lo último'), ('titulo','Título'), ('autor','Autor'), ('publicacion','Publicación'), ('modificado','Modificado'), ('antiguo','Lo más viejo')] %}
+      <option value="{{ url_for('paginas.inicio', **dict(request.args.to_dict(), orden=clave, pagina=1)) }}"
+              {% if orden == clave %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{% if libros %}
+  {{ rejilla(libros, lecturas) }}
+  {% if paginas_totales > 1 %}
+  <nav class="paginacion">
+    {% if pagina > 1 %}
+      <a class="boton suave" href="{{ url_for('paginas.inicio', **dict(request.args.to_dict(), pagina=pagina-1)) }}">← Anteriores</a>
+    {% endif %}
+    <span>Página {{ pagina }} de {{ paginas_totales }}</span>
+    {% if pagina < paginas_totales %}
+      <a class="boton suave" href="{{ url_for('paginas.inicio', **dict(request.args.to_dict(), pagina=pagina+1)) }}">Siguientes →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+{% else %}
+  <p class="vacio">No hay ningún libro que cumpla eso.
+    <a href="{{ url_for('paginas.inicio') }}">Ver toda la biblioteca</a> o
+    <a href="{{ url_for('paginas.subir') }}">subir uno nuevo</a>.</p>
+{% endif %}
+{% endblock %}

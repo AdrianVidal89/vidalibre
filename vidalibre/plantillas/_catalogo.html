@@ -1,0 +1,59 @@
+{# El trozo de abajo de la biblioteca: todos los libros, sueltos o repartidos
+   en estantes. Se pinta dentro de la página y también se sirve solo, para
+   poder cambiar el agrupamiento sin recargar nada más. #}
+{% from "_rejilla.html" import rejilla, carrusel %}
+<div class="estante-cabeza">
+  <h2>Todos los libros <span class="cuantos">{{ total }}</span></h2>
+  <div class="agrupar" role="group" aria-label="Agrupar los libros">
+    <span>Agrupar por</span>
+    {% for clave, etiqueta in grupos_posibles.items() %}
+      <a class="chip {% if agrupar == clave %}activo{% endif %}"
+         href="{{ url_for('paginas.inicio', agrupar=clave if clave != 'nada' else none) }}"
+         data-agrupar="{{ clave }}"
+         {% if agrupar == clave %}aria-current="true"{% endif %}>{{ etiqueta }}</a>
+    {% endfor %}
+    {% if agrupar == 'nada' %}
+    <select onchange="location = this.value" aria-label="Ordenar">
+      {% for clave, etiqueta in [('reciente','Lo último'), ('titulo','Título'), ('autor','Autor'), ('publicacion','Publicación'), ('modificado','Modificado'), ('antiguo','Lo más viejo')] %}
+      <option value="{{ url_for('paginas.inicio', orden=clave) }}"
+              {% if orden == clave %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </div>
+</div>
+
+{% if agrupar == 'nada' %}
+  {% if libros %}
+    {{ rejilla(libros, lecturas) }}
+  {% else %}
+    <p class="vacio">Todavía no hay ningún libro.
+      <a href="{{ url_for('paginas.subir') }}">Sube el primero</a>.</p>
+  {% endif %}
+{% else %}
+  {% for grupo in grupos %}
+  <section class="estante">
+    <div class="estante-cabeza">
+      <h3>{{ grupo.nombre }}
+        <span class="cuantos">{% if grupo.detalle %}{{ grupo.detalle }} · {% endif %}{{ grupo.libros }} libro{{ '' if grupo.libros == 1 else 's' }}</span>
+      </h3>
+      <a href="{{ grupo.url }}">Verlos todos →</a>
+    </div>
+    {{ carrusel(grupo.libros_muestra) }}
+  </section>
+  {% else %}
+  <p class="vacio">No hay nada que agrupar todavía.</p>
+  {% endfor %}
+{% endif %}
+
+{% if paginas_totales > 1 %}
+<nav class="paginacion">
+  {% if pagina > 1 %}
+    <a class="boton suave" href="{{ url_for('paginas.inicio', agrupar=agrupar if agrupar != 'nada' else none, orden=orden, pagina=pagina-1) }}">← Anteriores</a>
+  {% endif %}
+  <span>{{ 'Grupos' if agrupar != 'nada' else 'Página' }} {{ pagina }} de {{ paginas_totales }}</span>
+  {% if pagina < paginas_totales %}
+    <a class="boton suave" href="{{ url_for('paginas.inicio', agrupar=agrupar if agrupar != 'nada' else none, orden=orden, pagina=pagina+1) }}">Siguientes →</a>
+  {% endif %}
+</nav>
+{% endif %}

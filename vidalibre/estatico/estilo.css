@@ -613,6 +613,24 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
   font-variant-numeric: tabular-nums; margin-top: 4px;
 }
 
+/* --------------------------------------------------------------- AGRUPADOR
+   Las pastillas que deciden cómo se reparte la biblioteca. */
+.agrupar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.agrupar > span {
+  color: var(--suave); font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .07em; margin-right: 2px;
+}
+.agrupar .chip { cursor: pointer; }
+.agrupar .chip.activo { background: var(--acento); border-color: var(--acento);
+  color: var(--sobre-acento); font-weight: 600; }
+.agrupar select { font-size: .82rem; padding: 5px 8px; border-radius: var(--pastilla); }
+/* Mientras se trae el trozo nuevo, se apaga un poco. No se vacía: ver el hueco
+   en blanco y luego el contenido es peor que ver lo viejo un instante. */
+[data-catalogo] { transition: opacity var(--t-corto) var(--salida); }
+[data-catalogo].cargando { opacity: .45; pointer-events: none; }
+#catalogo > .estante:first-of-type { margin-top: 22px; }
+#catalogo .estante h3 { margin: 0; font-size: 1rem; }
+
 /* ------------------------------------------------------------------ MOSAICOS
    Los agrupamientos por género, autor y década: un bloque por grupo con las
    primeras portadas apiladas, como un montón de libros visto de frente. */
