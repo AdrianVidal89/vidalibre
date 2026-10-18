@@ -473,7 +473,16 @@ class Catalogo:
             args.append(datos["anadido"])
         if "indice_serie" in datos:
             campos.append("series_index = ?")
-            args.append(float(datos["indice_serie"] or 1.0))
+            # Ojo con `or`: el 0 es falso en Python y Calibre usa justamente el
+            # 0 para las precuelas y los volúmenes sueltos de una serie. Con
+            # `valor or 1.0` un 0 se convertía en 1 y chocaba con el primer
+            # libro. Solo el vacío y el None valen 1.
+            indice = datos["indice_serie"]
+            try:
+                indice = 1.0 if indice in (None, "") else float(indice)
+            except (TypeError, ValueError):
+                indice = 1.0
+            args.append(indice)
         if "autores" in datos:
             autores = [a for a in datos["autores"] if a.strip()] or ["Autor desconocido"]
             campos.append("author_sort = ?")

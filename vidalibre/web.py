@@ -614,7 +614,7 @@ def editar(id_libro):
         "titulo": formulario.get("titulo", "").strip(),
         "autores": lista_de(formulario.get("autores", ""), "&"),
         "serie": formulario.get("serie", "").strip(),
-        "indice_serie": formulario.get("indice_serie") or 1,
+        "indice_serie": formulario.get("indice_serie", ""),
         "editorial": formulario.get("editorial", "").strip(),
         "etiquetas": lista_de(formulario.get("etiquetas", "")),
         "idiomas": [i.lower() for i in lista_de(formulario.get("idiomas", ""))],

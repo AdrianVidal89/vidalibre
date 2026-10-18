@@ -33,6 +33,7 @@ import sqlite3
 import struct
 import time
 import unicodedata
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -376,6 +377,9 @@ def plan_de_sincronizacion(catalogo, aparato, cache_libros=None, margen=0.01):
             "referencia": entrada["referencia"],
             "fraccion_app": fraccion_app,
             "fraccion_aparato": fraccion_aparato,
+            # Por qué capítulo iba según el propio aparato. Vale mucho más que
+            # el porcentaje: ver `posicion_desde_fraccion`.
+            "capitulo_aparato": entrada.get("capitulo_aparato"),
         }
         if fraccion_aparato > fraccion_app + margen:
             linea["fraccion"] = fraccion_aparato
@@ -389,11 +393,60 @@ def plan_de_sincronizacion(catalogo, aparato, cache_libros=None, margen=0.01):
     return plan
 
 
-def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros):
-    """Convierte «vas por el 37% del libro» en capítulo y página.
+# El Kobo guarda el porcentaje leído como un número ENTERO. Eso suena a
+# detalle sin importancia y no lo es: en un libro de 243.000 palabras partido
+# en 99 capítulos, un 1 % son unas 2.400 palabras, o sea **un capítulo entero**.
+# Si el aparato redondea 11,6 a 12, aterrizas un capítulo por delante de donde
+# ibas. Pasó justo eso. Por eso el porcentaje es el último recurso.
+MEDIO_PUNTO = 0.005
 
-    Se apoya en el recuento de palabras por capítulo que ya hace el lector, así
-    que el salto cae donde tiene que caer y no a ojo por número de capítulo.
+
+def capitulo_del_marcador(epub, marcador):
+    """Por qué capítulo iba el Kobo, según el propio Kobo.
+
+    El aparato guarda en `ChapterIDBookmarked` la ruta del capítulo dentro del
+    EPUB, con la forma `…/libro.epub#(12)OEBPS/Text/cap12.xhtml`. Esa ruta es
+    **exacta**, mientras que el porcentaje viene redondeado a entero. Siempre
+    que se pueda casar, manda esta.
+    """
+    if not marcador:
+        return None
+    texto = str(marcador)
+    # Quedarse con la ruta interna: lo que va detrás del `#(n)`, o del `#`.
+    if "#" in texto:
+        texto = texto.split("#", 1)[1]
+        if texto.startswith("(") and ")" in texto:
+            texto = texto.split(")", 1)[1]
+    texto = urllib.parse.unquote(texto).strip().lstrip("/")
+    if not texto:
+        return None
+
+    # Casar por el final de la ruta: el Kobo a veces la guarda completa y a
+    # veces relativa a sitios distintos del EPUB.
+    nombre = texto.rsplit("/", 1)[-1].split("?")[0]
+    mejor = None
+    for numero, capitulo in enumerate(epub.capitulos):
+        ruta = (capitulo.get("ruta") or "").lstrip("/")
+        if not ruta:
+            continue
+        if ruta == texto:
+            return numero
+        if ruta.endswith("/" + texto) or texto.endswith("/" + ruta):
+            return numero
+        if mejor is None and ruta.rsplit("/", 1)[-1] == nombre:
+            mejor = numero
+    return mejor
+
+
+def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros,
+                            marcador=None):
+    """Convierte «vas por el 37 % del libro» en capítulo y página.
+
+    Con `marcador` (lo que el Kobo apunta como capítulo actual) se usa ese
+    capítulo tal cual, que es dato exacto. Sin él se cae al porcentaje, que
+    está redondeado a entero: se le resta medio punto para no pasarse de
+    capítulo, porque quedarse un poco corto se arregla pasando página y
+    pasarse obliga a buscar por dónde ibas.
     """
     libro = catalogo.libro(id_libro)
     if not libro:
@@ -407,15 +460,32 @@ def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros):
         return None, None
 
     objetivo = max(0.0, min(1.0, fraccion))
-    elegido, dentro = 0, 0.0
-    for numero, capitulo in enumerate(epub.capitulos):
+
+    elegido = capitulo_del_marcador(epub, marcador)
+    if elegido is not None:
+        # El capítulo lo dice el aparato; dentro de él, el porcentaje sirve
+        # para no empezar siempre desde la primera línea.
+        capitulo = epub.capitulos[elegido]
         inicio = capitulo.get("fraccion", 0)
-        palabras = capitulo.get("palabras", 0) / max(1, epub.palabras)
-        if objetivo >= inicio:
-            elegido = numero
-            dentro = (objetivo - inicio) / palabras if palabras > 0 else 0
-        else:
-            break
+        ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
+        dentro = (objetivo - inicio) / ancho if ancho > 0 else 0.0
+        # Si el porcentaje redondeado cae fuera del capítulo que dice el
+        # aparato, no sabemos por dónde iba dentro de él: se empieza por el
+        # principio. Dejarlo al final sería saltarse el capítulo entero.
+        if not 0.0 <= dentro <= 1.0:
+            dentro = 0.0
+    else:
+        objetivo = max(0.0, objetivo - MEDIO_PUNTO)
+        elegido, dentro = 0, 0.0
+        for numero, capitulo in enumerate(epub.capitulos):
+            inicio = capitulo.get("fraccion", 0)
+            palabras = capitulo.get("palabras", 0) / max(1, epub.palabras)
+            if objetivo >= inicio:
+                elegido = numero
+                dentro = (objetivo - inicio) / palabras if palabras > 0 else 0
+            else:
+                break
+
     dentro = max(0.0, min(1.0, dentro))
     ruta_interna = epub.capitulos[elegido]["ruta"] if elegido < len(epub.capitulos) else None
     return f"c{elegido}:{dentro:.4f}", {"capitulo": elegido, "ruta_interna": ruta_interna}
@@ -428,7 +498,8 @@ def aplicar(catalogo, plan, cache_libros, carpeta_copias, puente=None):
     # 1) Del aparato a la aplicación.
     for linea in plan["a_la_app"]:
         posicion, _extra = posicion_desde_fraccion(
-            catalogo, linea["libro"], linea["fraccion"], cache_libros)
+            catalogo, linea["libro"], linea["fraccion"], cache_libros,
+            marcador=linea.get("capitulo_aparato"))
         if posicion is None:
             posicion = f"c0:0"
         try:
