@@ -41,6 +41,7 @@ GUTENBERG_PORTADA = "https://www.gutenberg.org/cache/epub/{id}/pg{id}.cover.medi
 STANDARD_NOVEDADES = "https://standardebooks.org/feeds/atom/new-releases"
 OPENLIBRARY_BUSCAR = "https://openlibrary.org/search.json"
 OPENLIBRARY_PORTADA = "https://covers.openlibrary.org/b/id/{id}-L.jpg"
+OPENLIBRARY_OBRA = "https://openlibrary.org{clave}.json"
 
 IDIOMAS_GUTENBERG = {
     "": "", "es": "l.es", "en": "l.en", "fr": "l.fr", "de": "l.de",
@@ -260,11 +261,38 @@ def descargar(url, carpeta, nombre=None):
 
 
 # ------------------------------------------------------------ Open Library
-def buscar_ficha(titulo, autor="", maximo=5):
-    """Candidatos de Open Library para completar una ficha."""
-    consulta = " ".join(x for x in (titulo, autor) if x).strip()
-    if not consulta:
-        return []
+def limpiar_titulo(titulo):
+    """Quita del título el ruido que mete la tienda y que despista al buscador.
+
+    Los libros comprados llegan con cosas como «El marciano (Spanish Edition)»
+    o «Dune (Edición definitiva) [Nueva traducción]». Open Library busca por
+    texto y con todo eso dentro no encuentra nada: probándolo, «El marciano
+    (Spanish Edition)» daba cero resultados y «El marciano» a secas lo
+    encontraba a la primera.
+    """
+    texto = re.sub(r"[\(\[][^)\]]*[\)\]]", " ", titulo or "")
+    texto = re.split(r"\s+[-–—:]\s+", texto)[0]
+    return re.sub(r"\s+", " ", texto).strip(" .,-–—:") or (titulo or "").strip()
+
+
+def _candidato(documento):
+    return {
+        "titulo": documento.get("title", ""),
+        "autores": documento.get("author_name", [])[:3],
+        "publicado": documento.get("first_publish_year"),
+        "editorial": (documento.get("publisher") or [""])[0],
+        "idiomas": [i[:3] for i in (documento.get("language") or [])][:2],
+        "etiquetas": (documento.get("subject") or [])[:8],
+        "isbn": (documento.get("isbn") or [""])[0],
+        "portada": OPENLIBRARY_PORTADA.format(id=documento["cover_i"])
+                   if documento.get("cover_i") else "",
+        "clave": documento.get("key", ""),
+        "enlace": "https://openlibrary.org" + documento.get("key", ""),
+        "sinopsis": "",
+    }
+
+
+def _buscar_openlibrary(consulta, maximo):
     parametros = urllib.parse.urlencode({
         "q": consulta,
         "limit": maximo,
@@ -275,21 +303,68 @@ def buscar_ficha(titulo, autor="", maximo=5):
         datos = json.loads(_traer(f"{OPENLIBRARY_BUSCAR}?{parametros}"))
     except (ErrorFuente, ValueError) as ex:
         raise ErrorFuente(f"Open Library no ha contestado: {ex}") from ex
+    return [_candidato(d) for d in datos.get("docs", [])[:maximo]]
 
-    salida = []
-    for documento in datos.get("docs", [])[:maximo]:
-        salida.append({
-            "titulo": documento.get("title", ""),
-            "autores": documento.get("author_name", [])[:3],
-            "publicado": documento.get("first_publish_year"),
-            "editorial": (documento.get("publisher") or [""])[0],
-            "idiomas": [i[:3] for i in (documento.get("language") or [])][:2],
-            "etiquetas": (documento.get("subject") or [])[:8],
-            "isbn": (documento.get("isbn") or [""])[0],
-            "portada": OPENLIBRARY_PORTADA.format(id=documento["cover_i"])
-                       if documento.get("cover_i") else "",
-            "enlace": "https://openlibrary.org" + documento.get("key", ""),
-        })
+
+def sinopsis_de_obra(clave):
+    """El resumen largo de un libro. No viene en la búsqueda: hay que pedirlo.
+
+    La búsqueda de Open Library solo devuelve la primera frase. El resumen de
+    verdad está en la ficha de la obra, que es otra petición distinta.
+    """
+    if not clave or not clave.startswith("/works/"):
+        return ""
+    try:
+        datos = json.loads(_traer(OPENLIBRARY_OBRA.format(clave=clave)))
+    except (ErrorFuente, ValueError):
+        return ""
+    descripcion = datos.get("description")
+    if isinstance(descripcion, dict):
+        descripcion = descripcion.get("value", "")
+    texto = (descripcion or "").strip()
+    # Open Library deja al final la coletilla de quién copió el texto.
+    texto = re.split(r"\n\s*-{3,}|\n\s*\(\s*source", texto)[0].strip()
+    return texto[:4000]
+
+
+def buscar_ficha(titulo, autor="", maximo=5, con_sinopsis=True):
+    """Candidatos de Open Library para completar una ficha.
+
+    Si con el título tal cual no sale nada, se vuelve a probar con el título
+    limpio de paréntesis y subtítulos: es lo que rescata los libros comprados,
+    que llegan con el nombre lleno de añadidos.
+    """
+    titulo = (titulo or "").strip()
+    autor = (autor or "").strip()
+    if not titulo and not autor:
+        return []
+
+    intentos, vistos = [], set()
+    for candidato_titulo in (titulo, limpiar_titulo(titulo)):
+        consulta = " ".join(x for x in (candidato_titulo, autor) if x).strip()
+        if consulta and consulta not in vistos:
+            vistos.add(consulta)
+            intentos.append(consulta)
+    # Último recurso: el título limpio a secas, sin el autor.
+    suelto = limpiar_titulo(titulo)
+    if suelto and suelto not in vistos:
+        intentos.append(suelto)
+
+    salida, ultimo_error = [], None
+    for consulta in intentos:
+        try:
+            salida = _buscar_openlibrary(consulta, maximo)
+        except ErrorFuente as ex:
+            ultimo_error = ex
+            continue
+        if salida:
+            break
+    if not salida and ultimo_error:
+        raise ultimo_error
+
+    if con_sinopsis:
+        for candidato in salida:
+            candidato["sinopsis"] = sinopsis_de_obra(candidato["clave"])
     return salida
 
 

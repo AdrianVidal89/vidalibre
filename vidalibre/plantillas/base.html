@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-tema="auto">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,7 +7,8 @@
 <link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml">
 <link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icono-180.png') }}">
-<meta name="theme-color" content="#132742">
+<meta name="theme-color" content="#f4f5f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Vidalibre">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,6 +17,14 @@
 <link rel="search" type="application/opensearchdescription+xml" title="{{ nombre_app }}"
       href="{{ url_for('opds.buscador') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v={{ version }}">
+<!-- El tema elegido se aplica ANTES de pintar: si no, la página parpadea en
+     blanco un instante al cargar y queda feísimo en el móvil. -->
+<script>
+  try {
+    var t = localStorage.getItem('tema');
+    if (t) document.documentElement.dataset.tema = t;
+  } catch (e) {}
+</script>
 </head>
 <body>
 <header class="cabecera">
@@ -34,20 +43,21 @@
   </form>
 
   <nav class="menu">
-    <a href="{{ url_for('paginas.inicio') }}" {% if request.endpoint == 'paginas.inicio' %}class="activo"{% endif %}>
-      <i aria-hidden="true">📚</i><span>Libros</span></a>
+    <a href="{{ url_for('paginas.inicio') }}" {% if seccion == 'portada' %}class="activo"{% endif %}>
+      <i aria-hidden="true">✦</i><span>Portada</span></a>
+    <a href="{{ url_for('paginas.inicio', todo=1) }}" {% if seccion == 'biblioteca' %}class="activo"{% endif %}>
+      <i aria-hidden="true">📚</i><span>Biblioteca</span></a>
     <a href="{{ url_for('paginas.estantes', tipo='autores') }}" {% if request.endpoint == 'paginas.estantes' %}class="activo"{% endif %}>
       <i aria-hidden="true">🗂️</i><span>Estantes</span></a>
     <a href="{{ url_for('paginas.subir') }}" {% if request.endpoint == 'paginas.subir' %}class="activo"{% endif %}>
       <i aria-hidden="true">➕</i><span>Añadir</span></a>
-    <a href="{{ url_for('paginas.convertir_en_bloque') }}" {% if request.endpoint == 'paginas.convertir_en_bloque' %}class="activo"{% endif %}>
-      <i aria-hidden="true">🔄</i><span>Convertir</span></a>
     {% if ajustes.con_dispositivo %}
     <a href="{{ url_for('paginas.aparato') }}" {% if request.endpoint == 'paginas.aparato' %}class="activo"{% endif %}>
-      <i aria-hidden="true">📖</i><span>Kindle</span></a>
+      <i aria-hidden="true">📖</i><span>Mi lector</span></a>
     {% endif %}
     <a href="{{ url_for('paginas.trabajos') }}" {% if request.endpoint == 'paginas.trabajos' %}class="activo"{% endif %}>
       <i aria-hidden="true">⏳</i><span>Trabajos</span>{% if trabajos_activos %}<span class="punto" title="{{ trabajos_activos }} en marcha"></span>{% endif %}</a>
+    <button type="button" class="suave" id="cambia-tema" title="Claro / oscuro" aria-label="Cambiar entre claro y oscuro">◐</button>
   </nav>
 </header>
 

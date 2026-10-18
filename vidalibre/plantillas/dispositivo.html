@@ -2,9 +2,27 @@
 {% block titulo %}Aparatos{% endblock %}
 {% block contenido %}
 <h1>Lector conectado</h1>
+{% if apagados %}
+  {% for apagado in apagados %}
+  <section class="caja destacada">
+    <h2>Hay un {{ 'Kobo' if apagado.tipo == 'kobo' else 'Kindle' }} enchufado sin abrir</h2>
+    <p class="explica">El ordenador ve el lector («{{ apagado.etiqueta }}», {{ apagado.tamano }})
+      pero todavía no lo ha abierto, así que desde aquí no se puede mirar lo que tiene dentro.
+      Ábrelo y ya se puede sincronizar.</p>
+    <form method="post" action="{{ url_for('paginas.montar_aparato') }}" class="acciones">
+      <input type="hidden" name="bloque" value="{{ apagado.bloque }}">
+      <button class="principal">Conectar el lector</button>
+    </form>
+  </section>
+  {% endfor %}
+{% endif %}
+
 {% if not aparatos %}
+  {% if not apagados %}
   <p class="vacio">No veo ningún Kindle ni ningún Kobo enchufado. Conéctalo por el cable,
-    desbloquéalo y recarga esta página.</p>
+    desbloquéalo y, si el lector te pregunta en su pantalla, dile que <b>sí</b> a conectarse
+    al ordenador. Después recarga esta página.</p>
+  {% endif %}
 {% else %}
   {% for aparato in aparatos %}
   <section class="aparato">
@@ -53,8 +71,8 @@
         <li>
           <label>
             <input type="checkbox" name="ids" value="{{ libro.id }}">
-            <img loading="lazy" src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}" alt="">
-            <span><b>{{ libro.titulo }}</b><small>{{ libro.autores | join(', ') }} · {{ libro.formatos | join(' ') }}</small></span>
+            <img loading="lazy" src="{{ portada_url(libro, mini=true) }}" alt="">
+            <span title="{{ libro.titulo }}"><b>{{ libro.titulo }}</b><small>{{ libro.autores | join(', ') }} · {{ libro.formatos | join(' ') }}</small></span>
           </label>
         </li>
         {% endfor %}

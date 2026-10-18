@@ -1,26 +1,44 @@
-{% macro rejilla(libros, lecturas={}) %}
-<ul class="rejilla">
-  {% for libro in libros %}
-  <li class="tarjeta">
-    <a href="{{ url_for('paginas.libro', id_libro=libro.id) }}">
-      <span class="cubierta">
-        <img loading="lazy" src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}"
-             alt="Portada de {{ libro.titulo }}">
-        {% set leido = lecturas.get(libro.id) %}
-        {% if leido and leido > 0.01 %}
-        <span class="leido" title="Vas por el {{ (leido * 100) | round | int }}%">
-          <i style="width: {{ (leido * 100) | round | int }}%"></i>
-        </span>
-        {% endif %}
+{# Una portada de libro. Se usa igual en la rejilla de la biblioteca que en los
+   carruseles de la portada, para que un libro se vea siempre igual. #}
+{% macro tarjeta(libro, leido=none, en_marcha=false) %}
+<li class="tarjeta">
+  <a href="{{ url_for('paginas.libro', id_libro=libro.id) }}">
+    <span class="cubierta">
+      <img loading="lazy" src="{{ portada_url(libro, mini=true) }}"
+           alt="Portada de {{ libro.titulo }}" width="320" height="480">
+      {% if leido and leido > 0.01 %}
+      <span class="leido" title="Vas por el {{ (leido * 100) | round | int }}%">
+        <i style="width: {{ (leido * 100) | round | int }}%"></i>
       </span>
+      {% endif %}
+    </span>
+    <span>
       <span class="titulo">{{ libro.titulo }}</span>
       <span class="autor">{{ libro.autores | join(', ') }}</span>
-      <span class="formatos">
-        {% for formato in libro.formatos %}<i>{{ formato }}</i>{% endfor %}
-        {% if libro.serie %}<em title="{{ libro.serie }}">{{ libro.serie }} · {{ libro.indice_serie | round(1) }}</em>{% endif %}
-      </span>
-    </a>
-  </li>
+      {% if en_marcha and leido %}
+        <span class="cuanto">{{ (leido * 100) | round | int }}% leído</span>
+      {% else %}
+        <span class="formatos">
+          {% for formato in libro.formatos %}<i>{{ formato }}</i>{% endfor %}
+          {% if libro.serie %}<em title="{{ libro.serie }}">{{ libro.serie }} · {{ libro.indice_serie | round(1) }}</em>{% endif %}
+        </span>
+      {% endif %}
+    </span>
+  </a>
+</li>
+{% endmacro %}
+
+{% macro rejilla(libros, lecturas={}) %}
+<ul class="rejilla">
+  {% for libro in libros %}{{ tarjeta(libro, lecturas.get(libro.id)) }}{% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro carrusel(libros, clase="", lecturas={}) %}
+<ul class="carrusel {{ clase }}">
+  {% for libro in libros %}
+    {{ tarjeta(libro, libro.fraccion if libro.fraccion is defined else lecturas.get(libro.id),
+               en_marcha=(clase == 'en-marcha')) }}
   {% endfor %}
 </ul>
 {% endmacro %}

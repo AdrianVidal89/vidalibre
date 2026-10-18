@@ -2,7 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- Sin maximum-scale ni user-scalable=no: impiden agrandar el texto a quien lo
+     necesita. El doble toque no da el zoom molesto porque el cuerpo lleva
+     touch-action: manipulation, y el tamaño de letra del libro se cambia desde
+     el panel de ajustes del propio lector. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{ libro.titulo }} — leyendo</title>
 <link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml">
 <meta name="apple-mobile-web-app-capable" content="yes">

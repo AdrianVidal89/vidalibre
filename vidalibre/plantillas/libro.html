@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% from "_rejilla.html" import rejilla %}
+{% from "_rejilla.html" import carrusel %}
 {% block titulo %}{{ libro.titulo }} — {{ ajustes.titulo }}{% endblock %}
 {% block contenido %}
 <article class="ficha">
   <div class="ficha-portada">
-    <img src="{{ url_for('paginas.portada', id_libro=libro.id) }}" alt="Portada de {{ libro.titulo }}">
+    <span class="cubierta">
+      <img src="{{ portada_url(libro) }}" alt="Portada de {{ libro.titulo }}">
+      {% if lectura and lectura.fraccion > 0.01 %}
+      <span class="leido"><i style="width: {{ (lectura.fraccion * 100) | round | int }}%"></i></span>
+      {% endif %}
+    </span>
     <div class="descargas">
       <a class="boton principal grande" href="{{ url_for('lector.leer', id_libro=libro.id) }}">
         {% if 'EPUB' in libro.formatos %}
@@ -33,24 +38,24 @@
       {% endfor %}
     </p>
 
-    <dl class="datos">
+    <ul class="apuntes-ficha">
+      {% if libro.publicado %}<li><span>Publicado</span><strong>{{ libro.publicado | fecha('%Y') }}</strong></li>{% endif %}
       {% if libro.serie %}
-      <dt>Serie</dt><dd><a href="{{ url_for('paginas.inicio', serie=libro.serie) }}">{{ libro.serie }}</a>
-        · nº {{ libro.indice_serie | round(1) }}</dd>
+      <li><span>Serie</span><strong><a href="{{ url_for('paginas.inicio', serie=libro.serie) }}">{{ libro.serie }}</a>
+        nº {{ libro.indice_serie | round(1) }}</strong></li>
       {% endif %}
       {% if libro.editorial %}
-      <dt>Editorial</dt><dd><a href="{{ url_for('paginas.inicio', editorial=libro.editorial) }}">{{ libro.editorial }}</a></dd>
+      <li><span>Editorial</span><strong><a href="{{ url_for('paginas.inicio', editorial=libro.editorial) }}">{{ libro.editorial }}</a></strong></li>
       {% endif %}
-      {% if libro.publicado %}<dt>Publicado</dt><dd>{{ libro.publicado | fecha }}</dd>{% endif %}
-      <dt>En la biblioteca desde</dt><dd>{{ libro.anadido | fecha }}</dd>
       {% if libro.idiomas %}
-      <dt>Idioma</dt><dd>{% for i in libro.idiomas %}<a href="{{ url_for('paginas.inicio', idioma=i) }}">{{ i | idioma }}</a>{{ ", " if not loop.last }}{% endfor %}</dd>
+      <li><span>Idioma</span><strong>{% for i in libro.idiomas %}<a href="{{ url_for('paginas.inicio', idioma=i) }}">{{ i | idioma }}</a>{{ ", " if not loop.last }}{% endfor %}</strong></li>
       {% endif %}
-      {% if libro.valoracion %}<dt>Valoración</dt><dd>{{ "★" * (libro.valoracion // 2) }}{{ "½" if libro.valoracion % 2 }}</dd>{% endif %}
-      {% if libro.identificadores %}
-      <dt>Identificadores</dt><dd>{% for tipo, valor in libro.identificadores.items() %}<code>{{ tipo }}: {{ valor }}</code> {% endfor %}</dd>
+      {% if libro.formatos %}<li><span>Formatos</span><strong>{{ libro.formatos | join(' · ') }}</strong></li>{% endif %}
+      {% if libro.valoracion %}
+      <li><span>Valoración</span><strong>{{ "★" * (libro.valoracion // 2) }}{{ "½" if libro.valoracion % 2 }}</strong></li>
       {% endif %}
-    </dl>
+      <li><span>En la biblioteca</span><strong>{{ libro.anadido | fecha }}</strong></li>
+    </ul>
 
     {% if libro.etiquetas %}
     <p class="etiquetas">
@@ -60,15 +65,26 @@
     </p>
     {% endif %}
 
-    {% if libro.descripcion %}
-    <div class="descripcion">{{ libro.descripcion | html_seguro }}</div>
-    {% endif %}
+    <section class="sinopsis">
+      <h2>Sinopsis</h2>
+      {% if libro.descripcion %}
+      <div class="descripcion">{{ libro.descripcion | html_seguro }}</div>
+      {% else %}
+      <p class="sin-sinopsis">Este libro no trae sinopsis.
+        <a class="boton pequeno" href="{{ url_for('paginas.ficha_online', id_libro=libro.id) }}">Buscarla en internet</a>
+      </p>
+      {% endif %}
+    </section>
 
     {% set protegidos = candados.values() | selectattr('protegido') | list %}
     {% if protegidos %}
-    <p class="aviso aviso">🔒 <b>Este libro viene con candado ({{ protegidos[0].tipo }}).</b>
+    <p class="aviso atencion">🔒 <b>Este libro viene con candado ({{ protegidos[0].tipo }}).</b>
       {{ protegidos[0].detalle }} No se puede convertir ni leer aquí, y quitar esa protección no es
       legal aunque el libro sea tuyo.</p>
+    {% endif %}
+
+    {% if libro.identificadores %}
+    <p class="explica">{% for tipo, valor in libro.identificadores.items() %}<code>{{ tipo }}: {{ valor }}</code> {% endfor %}</p>
     {% endif %}
 
     <div class="acciones">
@@ -100,7 +116,7 @@
           {% for kindle in kindles %}<option value="{{ kindle }}">{{ kindle.name }}</option>{% endfor %}
         </select>
         <select name="formato"><option value="azw3">AZW3</option><option value="mobi">MOBI</option></select>
-        <button>Enviar al Kindle</button>
+        <button>Enviar al lector</button>
       </form>
       {% endif %}
 
@@ -142,10 +158,13 @@
   </div>
 </article>
 
-{% if hermanos %}
-<section class="seccion">
-  <h2>Más de «{{ libro.serie }}»</h2>
-  {{ rejilla(hermanos) }}
+{% for fila in relacionados %}
+<section class="estante">
+  <div class="estante-cabeza">
+    <h2>{{ fila.titulo }}</h2>
+    <a href="{{ fila.enlace }}">Verlos todos →</a>
+  </div>
+  {{ carrusel(fila.libros) }}
 </section>
-{% endif %}
+{% endfor %}
 {% endblock %}

@@ -54,7 +54,7 @@
         <textarea name="descripcion" rows="14">{{ libro.descripcion or '' }}</textarea>
       </label>
       <div class="portada-editar">
-        <img src="{{ url_for('paginas.portada', id_libro=libro.id, mini=1) }}" alt="">
+        <img src="{{ portada_url(libro, mini=true) }}" alt="">
         <div>
           <label>Cambiar la portada<input type="file" name="portada" accept="image/*"></label>
           <label class="casilla"><input type="checkbox" name="quitar_portada"> Quitar la portada</label>

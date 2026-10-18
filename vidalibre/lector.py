@@ -501,6 +501,24 @@ def leer_posicion(catalogo, id_libro, formato, usuario="vidalibre", aparato="web
     return {"posicion": fila["cfi"], "fraccion": fila["pos_frac"], "cuando": fila["epoch"]}
 
 
+def en_marcha(catalogo, limite=12, usuario="vidalibre", aparato="web"):
+    """Los libros empezados y sin terminar, el último leído primero.
+
+    Es lo que alimenta el «continuar leyendo» de la portada. Se dejan fuera los
+    que apenas se han abierto (por debajo del 1 %) y los ya acabados: ni unos ni
+    otros son algo que se quiera retomar.
+    """
+    with catalogo.conectar() as cx:
+        filas = cx.execute(
+            "SELECT book, MAX(pos_frac) AS fraccion, MAX(epoch) AS cuando "
+            "FROM last_read_positions WHERE user = ? AND device = ? "
+            "GROUP BY book HAVING fraccion > 0.01 AND fraccion < 0.985 "
+            "ORDER BY cuando DESC LIMIT ?",
+            (usuario, aparato, int(limite)),
+        ).fetchall()
+    return [{"id": f["book"], "fraccion": f["fraccion"], "cuando": f["cuando"]} for f in filas]
+
+
 def posiciones_de_libros(catalogo, ids, usuario="vidalibre", aparato="web"):
     """El porcentaje leído de varios libros de golpe, para pintarlo en la rejilla."""
     if not ids:

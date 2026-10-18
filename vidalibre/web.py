@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import tempfile
 from datetime import datetime
+from html import unescape
 from pathlib import Path
 
 from flask import (Blueprint, Response, abort, current_app, flash, jsonify,
@@ -124,6 +126,7 @@ def filtros_de_la_url():
         "editorial": request.args.get("editorial") or None,
         "formato": request.args.get("formato") or None,
         "sin_formato": request.args.get("sin_formato") or None,
+        "decada": request.args.get("decada") or None,
     }
 
 
@@ -179,6 +182,24 @@ def _filtro_html_seguro(texto):
     return Markup(texto)
 
 
+@paginas.app_template_filter("sin_html")
+def _filtro_sin_html(texto, limite=420):
+    """La descripción en texto pelado, para los sitios donde no cabe el HTML.
+
+    En el escaparate de la portada la sinopsis va recortada a unas líneas: si
+    se dejara el HTML de Calibre, el recorte podría partir una etiqueta por la
+    mitad y descolocar media página."""
+    import re as _re
+
+    texto = _re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", texto or "")
+    texto = _re.sub(r"(?s)<[^>]+>", " ", texto)
+    texto = unescape(texto)
+    texto = _re.sub(r"\s+", " ", texto).strip()
+    if limite and len(texto) > limite:
+        texto = texto[:limite].rsplit(" ", 1)[0] + "…"
+    return texto
+
+
 @paginas.app_context_processor
 def _contexto():
     return {
@@ -199,12 +220,116 @@ def _error_catalogo(ex):
     return redirect(request.referrer or url_for("paginas.inicio"))
 
 
+# -------------------------------------------------------------------- portada
+def _estante(titulo, libros, enlace=None, cuantos=None, clase=""):
+    """Una fila de portadas de la portada. Vacía no se pinta."""
+    if not libros:
+        return None
+    return {"titulo": titulo, "libros": libros, "enlace": enlace,
+            "cuantos": cuantos, "clase": clase}
+
+
+def _portada():
+    """La portada: un libro destacado y unas cuantas filas de estantes.
+
+    Se arma a base de consultas cortas en vez de una gorda: el catálogo es un
+    SQLite en el NAS y le sienta mejor así. Cualquier fila que salga vacía
+    desaparece sola, para que una biblioteca recién empezada no enseñe una
+    página llena de huecos.
+    """
+    cat = catalogo()
+    resumen = cat.resumen()
+
+    # Continuar leyendo: lo que está a medias, lo último primero.
+    empezados = lector.en_marcha(cat, limite=12)
+    libros_empezados = []
+    for apunte in empezados:
+        datos = cat.libro(apunte["id"])
+        if datos:
+            datos["fraccion"] = apunte["fraccion"]
+            libros_empezados.append(datos)
+
+    recientes, _ = cat.libros(orden="reciente", por_pagina=18)
+
+    # El destacado: el libro que tiene a medias, y si no hay ninguno, el
+    # último que entró en la biblioteca. Siempre hay algo que enseñar.
+    destacado = libros_empezados[0] if libros_empezados else (recientes[0] if recientes else None)
+    if destacado:
+        destacado = cat.libro(destacado["id"]) or destacado
+        destacado["fraccion"] = next(
+            (l["fraccion"] for l in libros_empezados if l["id"] == destacado["id"]), 0.0
+        )
+
+    estantes = []
+    hecho = _estante("Continuar leyendo", libros_empezados, clase="en-marcha")
+    if hecho:
+        estantes.append(hecho)
+    hecho = _estante("Lo último que has añadido", recientes,
+                     url_for("paginas.inicio", todo=1, orden="reciente"), resumen["libros"])
+    if hecho:
+        estantes.append(hecho)
+
+    # Un estante por género, de los que tienen libros suficientes para llenarlo.
+    generos = [g for g in cat.categoria("etiquetas", minimo=3)]
+    generos.sort(key=lambda g: -g["libros"])
+    for genero in generos[:5]:
+        libros, total = cat.libros(etiqueta=genero["nombre"], orden="titulo", por_pagina=18)
+        hecho = _estante(genero["nombre"], libros,
+                         url_for("paginas.inicio", etiqueta=genero["nombre"]), total)
+        if hecho:
+            estantes.append(hecho)
+
+    series = sorted(cat.categoria("series", minimo=2), key=lambda s: -s["libros"])[:6]
+    for serie in series[:2]:
+        libros, total = cat.libros(serie=serie["nombre"], orden="autor", por_pagina=18)
+        hecho = _estante(f"Serie: {serie['nombre']}", libros,
+                         url_for("paginas.inicio", serie=serie["nombre"]), total)
+        if hecho:
+            estantes.append(hecho)
+
+    # Mosaicos: los grupos que se enseñan como bloque con una pila de portadas.
+    autores = sorted(cat.categoria("autores", minimo=2), key=lambda a: -a["libros"])[:8]
+    for autor in autores:
+        autor["libros_muestra"] = cat.libros(
+            autor=autor["nombre"], orden="titulo", por_pagina=4)[0]
+        autor["url"] = url_for("paginas.inicio", autor=autor["nombre"])
+
+    decadas = []
+    for decada in cat.decadas(minimo=2)[:8]:
+        decadas.append({
+            "nombre": f"Años {str(decada['decada'])[-2:]}"
+                      if decada["decada"] >= 1900 else f"{decada['decada']}s",
+            "detalle": f"{decada['decada']}–{decada['decada'] + 9}",
+            "libros": decada["libros"],
+            "libros_muestra": cat.libros_de_decada(decada["decada"], limite=4),
+            "url": url_for("paginas.inicio", decada=decada["decada"]),
+        })
+
+    return render_template(
+        "portada.html",
+        seccion="portada",
+        destacado=destacado,
+        estantes=estantes,
+        autores=autores,
+        decadas=decadas,
+        resumen=resumen,
+    )
+
+
 # ----------------------------------------------------------------- biblioteca
 @paginas.route("/")
 def inicio():
     filtros = filtros_de_la_url()
     orden = request.args.get("orden", "reciente")
     pagina = max(1, request.args.get("pagina", 1, type=int))
+    # Sin filtros ni búsqueda, la raíz es la portada: la rejilla entera de 146
+    # libros no es forma de recibir a nadie. Con cualquier filtro puesto (o
+    # pulsando «Biblioteca», que pone todo=1) se pasa a la rejilla de siempre.
+    if not any(filtros.values()) and pagina == 1 and not request.args.get("todo"):
+        try:
+            return _portada()
+        except ErrorCatalogo as ex:
+            return render_template("sin_biblioteca.html", error=str(ex)), 503
     por_pagina = ajustes().por_pagina
     try:
         libros, total = catalogo().libros(
@@ -219,6 +344,7 @@ def inicio():
         "serie": ("Serie", "serie"), "etiqueta": ("Etiqueta", "etiqueta"),
         "idioma": ("Idioma", "idioma"), "editorial": ("Editorial", "editorial"),
         "formato": ("Formato", "formato"), "sin_formato": ("Sin", "sin_formato"),
+        "decada": ("Década", "decada"),
     }
     chips = [
         {"texto": f"{etiquetas_filtro[clave][0]}: {valor}",
@@ -227,6 +353,7 @@ def inicio():
     ]
     return render_template(
         "biblioteca.html",
+        seccion="biblioteca",
         chips=chips,
         lecturas=lector.posiciones_de_libros(catalogo(), [l["id"] for l in libros]),
         libros=libros,
@@ -258,20 +385,52 @@ def estantes(tipo):
     )
 
 
+def _relacionados(datos, por_fila=18):
+    """Las filas de «esto también te suena» de la ficha.
+
+    Tres criterios, de más a menos cercano: la misma serie, el mismo autor y
+    el mismo género. Un libro no se repite entre filas, y el propio libro
+    nunca sale: es la pega típica de estas secciones.
+    """
+    cat = catalogo()
+    id_libro = datos["id"]
+    filas, ya_vistos = [], {id_libro}
+
+    def fila(titulo, enlace, libros):
+        nuevos = [l for l in libros if l["id"] not in ya_vistos]
+        if not nuevos:
+            return
+        ya_vistos.update(l["id"] for l in nuevos)
+        filas.append({"titulo": titulo, "enlace": enlace, "libros": nuevos})
+
+    if datos["serie"]:
+        libros, _ = cat.libros(serie=datos["serie"], orden="autor", por_pagina=por_fila)
+        fila(f"Más de «{datos['serie']}»",
+             url_for("paginas.inicio", serie=datos["serie"]), libros)
+
+    for autor in datos["autores"][:2]:
+        libros, total = cat.libros(autor=autor, orden="titulo", por_pagina=por_fila)
+        fila(f"Más de {autor}", url_for("paginas.inicio", autor=autor), libros)
+
+    for etiqueta in datos["etiquetas"][:3]:
+        libros, _ = cat.libros(etiqueta=etiqueta, orden="reciente", por_pagina=por_fila)
+        fila(f"Más de {etiqueta}", url_for("paginas.inicio", etiqueta=etiqueta), libros)
+        if len(filas) >= 4:
+            break
+
+    return filas
+
+
 @paginas.route("/libro/<int:id_libro>")
 def libro(id_libro):
     datos = catalogo().libro(id_libro)
     if not datos:
         abort(404)
-    hermanos = []
-    if datos["serie"]:
-        hermanos, _ = catalogo().libros(serie=datos["serie"], orden="autor", por_pagina=30)
-        hermanos = [h for h in hermanos if h["id"] != id_libro]
     return render_template(
         "libro.html",
         libro=datos,
         lectura=lector.leer_posicion(catalogo(), id_libro, "EPUB"),
-        hermanos=hermanos,
+        relacionados=_relacionados(datos),
         hay_motor=motor.hay_motor(),
         kindles=dispositivo.detectar() if ajustes().con_dispositivo else [],
         en_disco={
@@ -288,6 +447,22 @@ def libro(id_libro):
     )
 
 
+@paginas.app_template_global("portada_url")
+def url_portada(libro, mini=False):
+    """La dirección de la portada de un libro, con marca de versión.
+
+    La marca (`v`) es lo que hace que al cambiar una portada se vea el cambio.
+    Sin ella el navegador se queda con la imagen vieja en su memoria durante
+    horas: la dirección es la misma, así que ni se molesta en volver a pedirla.
+    Pasó justo eso al completar una ficha desde internet — la portada nueva ya
+    estaba guardada en el disco y la pantalla seguía enseñando la anterior.
+    """
+    marca = str(libro.get("modificado") or libro.get("anadido") or "")
+    marca = re.sub(r"[^0-9]", "", marca)[:14] or "0"
+    return url_for("paginas.portada", id_libro=libro["id"],
+                   mini=1 if mini else None, v=marca)
+
+
 @paginas.route("/libro/<int:id_libro>/portada")
 def portada(id_libro):
     datos = catalogo().libro(id_libro)
@@ -301,7 +476,14 @@ def portada(id_libro):
         if mini:
             ruta = mini
     respuesta = send_file(str(ruta), conditional=True)
-    respuesta.headers["Cache-Control"] = "private, max-age=86400"
+    if request.args.get("v"):
+        # Con marca de versión la dirección cambia sola cuando cambia la
+        # portada, así que se puede guardar para siempre sin riesgo.
+        respuesta.headers["Cache-Control"] = "private, max-age=31536000, immutable"
+    else:
+        # Sin marca (un enlace viejo, o alguien escribiéndola a mano) hay que
+        # preguntar siempre: es barato, porque el ETag evita volver a bajarla.
+        respuesta.headers["Cache-Control"] = "private, no-cache"
     return respuesta
 
 
@@ -797,33 +979,45 @@ def aplicar_ficha_online(id_libro):
     if not datos:
         abort(404)
     formulario = request.form
-    cambios = {}
+    cambios, traido = {}, []
     if formulario.get("usar_titulo") and formulario.get("titulo"):
         cambios["titulo"] = formulario["titulo"]
+        traido.append("el título")
     if formulario.get("usar_autores") and formulario.getlist("autor"):
         cambios["autores"] = formulario.getlist("autor")
+        traido.append("los autores")
     if formulario.get("usar_publicado") and formulario.get("publicado"):
         cambios["publicado"] = fecha_calibre(f"{formulario['publicado']}-01-01")
+        traido.append("el año")
     if formulario.get("usar_editorial") and formulario.get("editorial"):
         cambios["editorial"] = formulario["editorial"]
+        traido.append("la editorial")
+    if formulario.get("usar_sinopsis") and formulario.get("sinopsis"):
+        cambios["descripcion"] = formulario["sinopsis"].strip()
+        traido.append("la sinopsis")
     if formulario.get("usar_etiquetas") and formulario.getlist("etiqueta"):
         cambios["etiquetas"] = sorted(set(datos["etiquetas"] + formulario.getlist("etiqueta")))
+        traido.append("los géneros")
     if formulario.get("usar_isbn") and formulario.get("isbn"):
         cambios["identificadores"] = {**datos["identificadores"], "isbn": formulario["isbn"]}
+        traido.append("el ISBN")
 
     imagen = None
     if formulario.get("usar_portada") and formulario.get("portada"):
         try:
             imagen = fuentes.traer_portada(formulario["portada"])
+            traido.append("la portada")
         except fuentes.ErrorFuente as ex:
-            flash(str(ex), "aviso")
+            flash(str(ex), "atencion")
 
     if not cambios and not imagen:
-        flash("No has marcado nada que traer.", "aviso")
-        return redirect(url_for("paginas.ficha_online", id_libro=id_libro))
+        flash("No has marcado nada que traer: marca al menos una casilla y vuelve a darle.",
+              "atencion")
+        return redirect(url_for("paginas.ficha_online", id_libro=id_libro,
+                                q=request.args.get("q"), autor=request.args.get("autor")))
 
     biblioteca().guardar_edicion(id_libro, cambios, portada=imagen)
-    flash("Ficha completada con los datos de Open Library.", "ok")
+    flash("Traído de Open Library: " + ", ".join(traido) + ".", "ok")
     return redirect(url_for("paginas.libro", id_libro=id_libro))
 
 
@@ -878,9 +1072,26 @@ def aparato():
     return render_template(
         "dispositivo.html",
         aparatos=aparatos,
+        # Enchufados pero sin montar: sin esto la pantalla sale vacía y parece
+        # que el lector no está, cuando lo que pasa es que falta un paso.
+        apagados=dispositivo.sin_montar(),
         contenido={a["ruta"]: sincronizacion.libros_en_el_aparato(a) for a in aparatos},
         ultimos=catalogo().libros(orden="reciente", por_pagina=24)[0],
     )
+
+
+@paginas.route("/dispositivo/montar", methods=["POST"])
+def montar_aparato():
+    """Monta un lector que está enchufado pero que el escritorio no ha abierto."""
+    if not ajustes().con_dispositivo:
+        abort(404)
+    try:
+        ruta = dispositivo.montar(request.form.get("bloque", ""))
+    except (ValueError, RuntimeError) as ex:
+        flash(str(ex), "error")
+    else:
+        flash(f"Lector conectado. Está en {ruta}.", "ok")
+    return redirect(url_for("paginas.aparato"))
 
 
 def _aparato_de(ruta):

@@ -17,9 +17,16 @@ motor va entero aquí dentro.
   noche y negro), índice, búsqueda dentro del libro, cuánto queda del capítulo
   y memoria de por dónde ibas, compartida entre el móvil, la tablet y el
   ordenador.
+- **Portada de entrada**: lo primero que se ve no es la lista entera, sino un
+  libro destacado (el que tienes a medias), la fila de **continuar leyendo**,
+  lo último que entró, un estante por género y los grupos por **autor** y por
+  **época**. La rejilla completa, con sus filtros y su orden, sigue estando en
+  «Biblioteca».
 - **Biblioteca**: rejilla de portadas con lo leído de cada libro, buscador que
   mira título, autor, serie, etiquetas, editorial y hasta la descripción, y
   estantes por autor, serie, etiqueta, editorial e idioma.
+- **Ficha de libro** con la sinopsis, los datos en fichas y filas de **obras
+  relacionadas**: de la misma serie, del mismo autor y del mismo género.
 - **Subir libros**: EPUB, MOBI, AZW3, PDF, FB2, DOCX, CBZ… De cada fichero lee
   por dentro el título, el autor, la serie, las etiquetas y la portada, y lo
   coloca en `Autor/Título (id)/` como hace Calibre.
@@ -35,8 +42,10 @@ motor va entero aquí dentro.
 - **Kindle y Kobo por USB** (solo en el ordenador): ver el aparato, mandarle
   libros convirtiéndolos si hace falta, prepararle al Kindle la miniatura de
   portada, reponer las portadas grises y **sincronizar por dónde vas leyendo**.
+  Si el lector está enchufado pero el escritorio no lo ha abierto, se detecta
+  y se ofrece **conectarlo desde la propia aplicación**.
 - **Traer libros nuevos**: búsqueda en Project Gutenberg y Standard Ebooks, y
-  relleno de fichas y portadas desde Open Library.
+  relleno de fichas, **sinopsis** y portadas desde Open Library.
 - **Aviso de DRM**: si un libro viene con candado, se dice claro y pronto.
 - **OPDS**: KOReader, Moon+ Reader o Panels se conectan a `/opds` y navegan la
   biblioteca y se descargan los libros solos.
@@ -81,6 +90,13 @@ arriesgarse a dejarle un fichero corrupto, así que no se intenta.
 
 El porcentaje del aparato se convierte en capítulo y página usando el recuento
 de palabras que ya hace el lector, así que el salto cae donde tiene que caer.
+
+**Un lector enchufado no es un lector montado.** El escritorio no siempre abre
+el aparato solo (en KDE el automontaje viene apagado de fábrica), y mientras no
+esté montado no hay ninguna carpeta que mirar: para el programa es como si no
+estuviera. La pantalla «Mi lector» mira también los discos USB **sin montar**
+con etiqueta de Kobo o de Kindle, lo dice, y trae un botón que los monta
+(`udisksctl`, lo mismo que hace el escritorio al pinchar en su aviso).
 
 ## De dónde se pueden traer libros
 
@@ -174,7 +190,7 @@ vidalibre/
   catalogo.py     el metadata.db de Calibre: leer y escribir
   ficheros.py     carpetas, nombres, portadas y metadata.opf
   motor.py        ebook-convert y ebook-meta + la cola de trabajos
-  dispositivo.py  el Kindle por USB
+  dispositivo.py  el Kindle y el Kobo por USB, montados o por montar
   sincronizacion.py  progreso compartido con el Kobo y el Kindle
   fuentes.py      Gutenberg, Standard Ebooks y Open Library
   drm.py          reconocer libros con candado
@@ -199,6 +215,26 @@ Cuatro decisiones que explican el resto:
 4. **Las conversiones van de una en una**, en una cola. El NAS tiene 3,7 GB de
    memoria para todo y una conversión arranca un Calibre entero.
 
+## El aspecto
+
+Vidalibre usa el mismo aspecto que el resto de las aplicaciones de casa: base
+neutra y oscura, **ámbar solo en los acentos**, claro u oscuro siguiendo al
+sistema (con interruptor manual en la cabecera), tarjetas grandes y navegación
+abajo en el móvil. Es una sola hoja de estilo escrita a mano
+(`estatico/estilo.css`): la primera mitad es la base común y la segunda, lo
+propio de los libros. Nada de frameworks.
+
+Tres reglas que se notan y conviene no romper:
+
+- Las portadas se piden siempre con **marca de versión** (`?v=…`, sacada de la
+  fecha de modificación del libro). Sin eso el navegador se queda con la
+  portada vieja durante horas y parece que cambiarla no hace nada.
+- En las rejillas la portada se recorta a **2:3** para que las filas queden
+  parejas; en la ficha y en el escaparate se enseña entera.
+- Las animaciones van todas por debajo de 300 ms, solo sobre `transform` y
+  `opacity`, y los `:hover` viven dentro de `@media (hover: hover)`: si no, en
+  el móvil se quedan pegados al tocar.
+
 ## Si algo va mal
 
 | Qué pasa | Qué mirar |
@@ -209,6 +245,8 @@ Cuatro decisiones que explican el resto:
 | Va lento al listar | las miniaturas se cachean en `datos/miniaturas`; la primera vuelta es la lenta |
 | Un libro tarda en abrirse la primera vez | se cuentan sus palabras para saber el porcentaje y los minutos; queda guardado en `datos/medidas` y la segunda vez es instantáneo |
 | «Esto se hace en la biblioteca de casa» | estás en la copia del ordenador, que no escribe el catálogo: ese cambio se hace en el NAS |
+| Enchufo el lector y no sale | tiene que estar la copia **del ordenador** (`vidalibre`, puerto 8484): el NAS no ve los cables USB. Si sale «hay un lector enchufado sin abrir», pulsa *Conectar el lector* |
+| Cambio la portada y sigo viendo la vieja | no debería pasar ya: la dirección de la portada lleva marca de versión. Si pasa, recarga sin caché |
 
 ## Licencia y de dónde sale
 

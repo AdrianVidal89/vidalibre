@@ -53,7 +53,10 @@
             if (fila.classList.contains("destacado")) clase += " destacado";
             if (fila.className !== clase) cambio = true;
             fila.className = clase;
-            fila.querySelector(".progreso i").style.width = trabajo.porcentaje + "%";
+            // La barra se estira con transform: con width el navegador tiene que
+          // recalcular y repintar en cada fotograma y se nota el tirón.
+          fila.querySelector(".progreso i").style.transform =
+            "scaleX(" + (trabajo.porcentaje / 100) + ")";
             fila.querySelector(".detalle").textContent = trabajo.detalle;
             var estado = fila.querySelector(".estado");
             estado.textContent = trabajo.estado + (trabajo.pasos > 1 ? " · " + trabajo.paso + "/" + trabajo.pasos : "");
@@ -65,7 +68,30 @@
     }, 2500);
   }
 
-  // 4) Marcar y desmarcar todos los libros de una lista de envío.
+  // 4) Claro / oscuro: auto (lo que diga el sistema) → claro → oscuro → auto.
+  var interruptor = document.getElementById("cambia-tema");
+  if (interruptor) {
+    var orden = ["auto", "claro", "oscuro"];
+    var nombres = { auto: "Tema: el del sistema", claro: "Tema: claro", oscuro: "Tema: oscuro" };
+    var simbolos = { auto: "\u25D0", claro: "\u2600", oscuro: "\u263E" };
+    pintar(document.documentElement.dataset.tema || "auto");
+    interruptor.addEventListener("click", function () {
+      var actual = document.documentElement.dataset.tema || "auto";
+      var siguiente = orden[(orden.indexOf(actual) + 1) % orden.length];
+      document.documentElement.dataset.tema = siguiente;
+      try {
+        if (siguiente === "auto") localStorage.removeItem("tema");
+        else localStorage.setItem("tema", siguiente);
+      } catch (e) {}
+      pintar(siguiente);
+    });
+    function pintar(tema) {
+      interruptor.textContent = simbolos[tema] || simbolos.auto;
+      interruptor.title = nombres[tema] || nombres.auto;
+    }
+  }
+
+  // 5) Marcar y desmarcar todos los libros de una lista de envío.
   document.querySelectorAll(".envio").forEach(function (formulario) {
     var casillas = formulario.querySelectorAll('input[name="ids"]');
     if (!casillas.length) return;

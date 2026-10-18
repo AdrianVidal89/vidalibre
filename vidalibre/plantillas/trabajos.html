@@ -10,7 +10,7 @@
       <b>{{ trabajo.titulo }}</b>
       <span class="estado">{{ trabajo.estado }}{% if trabajo.pasos > 1 %} · {{ trabajo.paso }}/{{ trabajo.pasos }}{% endif %}</span>
     </div>
-    <div class="progreso"><i style="width: {{ trabajo.porcentaje }}%"></i></div>
+    <div class="progreso"><i style="transform: scaleX({{ (trabajo.porcentaje / 100) | round(3) }})"></i></div>
     <p class="detalle">{{ trabajo.detalle }}</p>
     {% if trabajo.resultados %}
     <ul class="resultados">

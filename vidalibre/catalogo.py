@@ -183,7 +183,8 @@ class Catalogo:
     """
 
     def _filtros(self, busqueda=None, autor=None, serie=None, etiqueta=None,
-                 idioma=None, editorial=None, formato=None, sin_formato=None):
+                 idioma=None, editorial=None, formato=None, sin_formato=None,
+                 decada=None):
         donde, args = [], []
         if busqueda:
             patron = f"%{busqueda.strip()}%"
@@ -228,6 +229,14 @@ class Catalogo:
         if sin_formato:
             donde.append("NOT EXISTS (SELECT 1 FROM data d WHERE d.book=libros.id AND UPPER(d.format) = ?)")
             args.append(sin_formato.upper())
+        if decada:
+            try:
+                inicio = (int(decada) // 10) * 10
+            except (TypeError, ValueError):
+                inicio = None
+            if inicio is not None:
+                donde.append("CAST(substr(libros.pubdate, 1, 4) AS INTEGER) BETWEEN ? AND ?")
+                args += [inicio, inicio + 9]
         return (" WHERE " + " AND ".join(donde)) if donde else "", args
 
     def libros(self, orden="reciente", pagina=1, por_pagina=48, **filtros):
@@ -311,6 +320,31 @@ class Catalogo:
                     (minimo,),
                 )
             ]
+
+    def decadas(self, minimo=1):
+        """Los libros agrupados por década de publicación, de la más nueva a la
+        más vieja. Es el «por año» de la portada: por años sueltos saldrían
+        cincuenta grupos de un libro y no se entiende nada."""
+        with self.conectar() as cx:
+            filas = cx.execute(
+                "SELECT (CAST(substr(pubdate, 1, 4) AS INTEGER) / 10) * 10 AS decada, "
+                "COUNT(*) AS libros FROM books "
+                "WHERE pubdate IS NOT NULL AND CAST(substr(pubdate, 1, 4) AS INTEGER) > 1000 "
+                "GROUP BY decada HAVING libros >= ? ORDER BY decada DESC",
+                (minimo,),
+            ).fetchall()
+        return [{"decada": f["decada"], "libros": f["libros"]} for f in filas]
+
+    def libros_de_decada(self, decada, limite=14):
+        """Las portadas de una década, para la pila del mosaico."""
+        with self.conectar() as cx:
+            filas = cx.execute(
+                f"SELECT {self._CAMPOS} FROM books libros "
+                "WHERE CAST(substr(libros.pubdate, 1, 4) AS INTEGER) BETWEEN ? AND ? "
+                "ORDER BY libros.pubdate DESC LIMIT ?",
+                (int(decada), int(decada) + 9, limite),
+            ).fetchall()
+        return [self._libro_dict(f) for f in filas]
 
     def formatos(self):
         with self.conectar() as cx:

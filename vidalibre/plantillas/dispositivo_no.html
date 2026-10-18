@@ -1,8 +1,11 @@
 {% extends "base.html" %}
-{% block titulo %}Kindle{% endblock %}
+{% block titulo %}Mi lector{% endblock %}
 {% block contenido %}
-<h1>El Kindle se conecta en el ordenador, no aquí</h1>
-<p class="explica">Esta copia de {{ nombre_app }} corre en el NAS, y un servidor no ve los cables USB de
-  tu portátil. Para enviar libros al Kindle o reponerle las portadas, abre {{ nombre_app }} en el
-  ordenador donde lo tengas enchufado: es la misma biblioteca y los mismos libros.</p>
+<h1>El lector se conecta en el ordenador, no aquí</h1>
+<p class="explica">Esta copia de {{ nombre_app }} corre en el NAS, y un servidor no ve los cables USB
+  de tu portátil. Para enviar libros al Kindle o al Kobo, reponerle las portadas o sincronizar por
+  dónde vas leyendo, abre {{ nombre_app }} <b>en el ordenador donde lo tengas enchufado</b>: es la
+  misma biblioteca y los mismos libros.</p>
+<p class="explica">En el portátil se abre con el icono de {{ nombre_app }} o escribiendo
+  <code>vidalibre</code> en una terminal.</p>
 {% endblock %}
