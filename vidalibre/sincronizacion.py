@@ -442,11 +442,13 @@ def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros,
                             marcador=None):
     """Convierte «vas por el 37 % del libro» en capítulo y página.
 
-    Con `marcador` (lo que el Kobo apunta como capítulo actual) se usa ese
-    capítulo tal cual, que es dato exacto. Sin él se cae al porcentaje, que
-    está redondeado a entero: se le resta medio punto para no pasarse de
-    capítulo, porque quedarse un poco corto se arregla pasando página y
-    pasarse obliga a buscar por dónde ibas.
+    Manda el **porcentaje**, con medio punto restado por el redondeo. El
+    marcador de capítulo del aparato solo se usa para deshacer el empate
+    cuando el porcentaje cae justo en una frontera: ahí sí sabe más que
+    nosotros, y fuera de ahí **no es de fiar**, porque el Kobo lo actualiza a
+    su ritmo y se queda atrás. Probándolo con un libro real el marcador decía
+    el capítulo 14 (el 8 % del libro) cuando la lectura iba por el 12 %: tres
+    capítulos de diferencia.
     """
     libro = catalogo.libro(id_libro)
     if not libro:
@@ -459,34 +461,40 @@ def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros,
     except Exception:
         return None, None
 
-    objetivo = max(0.0, min(1.0, fraccion))
+    pedido = max(0.0, min(1.0, fraccion))
+    # El aparato redondea a entero, así que la lectura de verdad está en
+    # algún punto de medio punto a cada lado. Se apunta al borde de abajo:
+    # quedarse corto se arregla pasando página; pasarse obliga a buscar.
+    objetivo = max(0.0, pedido - MEDIO_PUNTO)
 
-    elegido = capitulo_del_marcador(epub, marcador)
-    if elegido is not None:
-        # El capítulo lo dice el aparato; dentro de él, el porcentaje sirve
-        # para no empezar siempre desde la primera línea.
-        capitulo = epub.capitulos[elegido]
-        inicio = capitulo.get("fraccion", 0)
-        ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
-        dentro = (objetivo - inicio) / ancho if ancho > 0 else 0.0
-        # Si el porcentaje redondeado cae fuera del capítulo que dice el
-        # aparato, no sabemos por dónde iba dentro de él: se empieza por el
-        # principio. Dejarlo al final sería saltarse el capítulo entero.
-        if not 0.0 <= dentro <= 1.0:
-            dentro = 0.0
-    else:
-        objetivo = max(0.0, objetivo - MEDIO_PUNTO)
+    def cae_en(valor):
         elegido, dentro = 0, 0.0
         for numero, capitulo in enumerate(epub.capitulos):
             inicio = capitulo.get("fraccion", 0)
-            palabras = capitulo.get("palabras", 0) / max(1, epub.palabras)
-            if objetivo >= inicio:
+            ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
+            if valor >= inicio:
                 elegido = numero
-                dentro = (objetivo - inicio) / palabras if palabras > 0 else 0
+                dentro = (valor - inicio) / ancho if ancho > 0 else 0.0
             else:
                 break
+        return elegido, max(0.0, min(1.0, dentro))
 
-    dentro = max(0.0, min(1.0, dentro))
+    elegido, dentro = cae_en(objetivo)
+
+    # Con el redondeo, la lectura puede estar en cualquier capítulo entre el
+    # borde de abajo y el de arriba. Si el aparato nombra uno de esos, le
+    # hacemos caso: ahí sí sabe más. Fuera de esa franja se ignora, que es lo
+    # que evita el salto de tres capítulos del marcador obsoleto.
+    arriba, _ = cae_en(min(1.0, pedido + MEDIO_PUNTO))
+    if arriba != elegido and marcador is not None:
+        del_aparato = capitulo_del_marcador(epub, marcador)
+        if del_aparato is not None and elegido <= del_aparato <= arriba:
+            elegido = del_aparato
+            capitulo = epub.capitulos[elegido]
+            ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
+            dentro = ((pedido - capitulo.get("fraccion", 0)) / ancho) if ancho > 0 else 0.0
+            dentro = dentro if 0.0 <= dentro <= 1.0 else 0.0
+
     ruta_interna = epub.capitulos[elegido]["ruta"] if elegido < len(epub.capitulos) else None
     return f"c{elegido}:{dentro:.4f}", {"capitulo": elegido, "ruta_interna": ruta_interna}
 
