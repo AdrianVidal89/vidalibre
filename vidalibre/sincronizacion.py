@@ -381,7 +381,32 @@ def plan_de_sincronizacion(catalogo, aparato, cache_libros=None, margen=0.01):
             # el porcentaje: ver `posicion_desde_fraccion`.
             "capitulo_aparato": entrada.get("capitulo_aparato"),
         }
-        if fraccion_aparato > fraccion_app + margen:
+        # Comparar los dos porcentajes a pelo NO vale: no miden lo mismo. El
+        # Kobo cuenta documentos y nosotros palabras, y en un libro con mucha
+        # portadilla delante eso son varios puntos de diferencia estando los
+        # dos en el mismo sitio (medido: 12 % en el Kobo y 8,2 % aquí). Si se
+        # comparan a pelo, pasan dos cosas malas: la sincronización cree
+        # siempre que hay trabajo aunque vaya todo al día, y lo que lees en el
+        # móvil no llega nunca al Kobo, porque nuestro porcentaje sale más
+        # bajo. Por eso se comparan **capítulos**, que sí significan lo mismo.
+        cap_aparato = cap_app = None
+        epub = _capitulos_del_libro(catalogo, id_libro, cache_libros)
+        if epub is not None:
+            cap_aparato = capitulo_del_marcador(epub, entrada.get("capitulo_aparato"))
+            cap_app = capitulo_de_la_app(guardada.get("posicion"))
+        linea["capitulo_app"] = cap_app
+        linea["capitulo_del_aparato"] = cap_aparato
+
+        if cap_aparato is not None and cap_app is not None:
+            if cap_aparato > cap_app:
+                linea["fraccion"] = fraccion_aparato
+                plan["a_la_app"].append(linea)
+            elif cap_app > cap_aparato and tipo == "kobo":
+                linea["fraccion"] = fraccion_app
+                plan["al_aparato"].append(linea)
+            else:
+                plan["iguales"].append(linea)
+        elif fraccion_aparato > fraccion_app + margen:
             linea["fraccion"] = fraccion_aparato
             plan["a_la_app"].append(linea)
         elif fraccion_app > fraccion_aparato + margen and tipo == "kobo":
@@ -438,17 +463,36 @@ def capitulo_del_marcador(epub, marcador):
     return mejor
 
 
+def capitulo_de_la_app(posicion):
+    """El número de capítulo que guarda la aplicación, de su marca `c12:0.34`."""
+    m = re.match(r"^c(\d+):", str(posicion or ""))
+    return int(m.group(1)) if m else None
+
+
+def _capitulos_del_libro(catalogo, id_libro, cache_libros):
+    if not cache_libros:
+        return None
+    libro = catalogo.libro(id_libro)
+    if not libro:
+        return None
+    ruta = ficheros.ruta_fichero(catalogo.raiz, libro, "EPUB")
+    if not ruta or not ruta.is_file():
+        return None
+    try:
+        return cache_libros.abrir(ruta)
+    except Exception:
+        return None
+
+
 def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros,
                             marcador=None):
     """Convierte «vas por el 37 % del libro» en capítulo y página.
 
-    Manda el **porcentaje**, con medio punto restado por el redondeo. El
-    marcador de capítulo del aparato solo se usa para deshacer el empate
-    cuando el porcentaje cae justo en una frontera: ahí sí sabe más que
-    nosotros, y fuera de ahí **no es de fiar**, porque el Kobo lo actualiza a
-    su ritmo y se queda atrás. Probándolo con un libro real el marcador decía
-    el capítulo 14 (el 8 % del libro) cuando la lectura iba por el 12 %: tres
-    capítulos de diferencia.
+    Con `marcador` (lo que el Kobo apunta como capítulo actual) se usa ese
+    capítulo tal cual, que es dato exacto. Sin él se cae al porcentaje, que
+    está redondeado a entero: se le resta medio punto para no pasarse de
+    capítulo, porque quedarse un poco corto se arregla pasando página y
+    pasarse obliga a buscar por dónde ibas.
     """
     libro = catalogo.libro(id_libro)
     if not libro:
@@ -461,40 +505,34 @@ def posicion_desde_fraccion(catalogo, id_libro, fraccion, cache_libros,
     except Exception:
         return None, None
 
-    pedido = max(0.0, min(1.0, fraccion))
-    # El aparato redondea a entero, así que la lectura de verdad está en
-    # algún punto de medio punto a cada lado. Se apunta al borde de abajo:
-    # quedarse corto se arregla pasando página; pasarse obliga a buscar.
-    objetivo = max(0.0, pedido - MEDIO_PUNTO)
+    objetivo = max(0.0, min(1.0, fraccion))
 
-    def cae_en(valor):
+    elegido = capitulo_del_marcador(epub, marcador)
+    if elegido is not None:
+        # El capítulo lo dice el aparato; dentro de él, el porcentaje sirve
+        # para no empezar siempre desde la primera línea.
+        capitulo = epub.capitulos[elegido]
+        inicio = capitulo.get("fraccion", 0)
+        ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
+        dentro = (objetivo - inicio) / ancho if ancho > 0 else 0.0
+        # Si el porcentaje redondeado cae fuera del capítulo que dice el
+        # aparato, no sabemos por dónde iba dentro de él: se empieza por el
+        # principio. Dejarlo al final sería saltarse el capítulo entero.
+        if not 0.0 <= dentro <= 1.0:
+            dentro = 0.0
+    else:
+        objetivo = max(0.0, objetivo - MEDIO_PUNTO)
         elegido, dentro = 0, 0.0
         for numero, capitulo in enumerate(epub.capitulos):
             inicio = capitulo.get("fraccion", 0)
-            ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
-            if valor >= inicio:
+            palabras = capitulo.get("palabras", 0) / max(1, epub.palabras)
+            if objetivo >= inicio:
                 elegido = numero
-                dentro = (valor - inicio) / ancho if ancho > 0 else 0.0
+                dentro = (objetivo - inicio) / palabras if palabras > 0 else 0
             else:
                 break
-        return elegido, max(0.0, min(1.0, dentro))
 
-    elegido, dentro = cae_en(objetivo)
-
-    # Con el redondeo, la lectura puede estar en cualquier capítulo entre el
-    # borde de abajo y el de arriba. Si el aparato nombra uno de esos, le
-    # hacemos caso: ahí sí sabe más. Fuera de esa franja se ignora, que es lo
-    # que evita el salto de tres capítulos del marcador obsoleto.
-    arriba, _ = cae_en(min(1.0, pedido + MEDIO_PUNTO))
-    if arriba != elegido and marcador is not None:
-        del_aparato = capitulo_del_marcador(epub, marcador)
-        if del_aparato is not None and elegido <= del_aparato <= arriba:
-            elegido = del_aparato
-            capitulo = epub.capitulos[elegido]
-            ancho = capitulo.get("palabras", 0) / max(1, epub.palabras)
-            dentro = ((pedido - capitulo.get("fraccion", 0)) / ancho) if ancho > 0 else 0.0
-            dentro = dentro if 0.0 <= dentro <= 1.0 else 0.0
-
+    dentro = max(0.0, min(1.0, dentro))
     ruta_interna = epub.capitulos[elegido]["ruta"] if elegido < len(epub.capitulos) else None
     return f"c{elegido}:{dentro:.4f}", {"capitulo": elegido, "ruta_interna": ruta_interna}
 

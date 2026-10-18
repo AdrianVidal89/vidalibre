@@ -1139,7 +1139,12 @@ def ver_sincronizacion():
     if not aparato:
         flash("No veo ese aparato conectado.", "error")
         return redirect(url_for("paginas.aparato"))
-    plan = sincronizacion.plan_de_sincronizacion(catalogo(), aparato)
+    from .lector_web import _LIBROS, _preparar_cache
+
+    # Hace falta abrir los EPUB para saber en qué capítulo está cada uno: sin
+    # eso la comparación cae al porcentaje, que no mide lo mismo en los dos.
+    _preparar_cache()
+    plan = sincronizacion.plan_de_sincronizacion(catalogo(), aparato, _LIBROS)
     return render_template("sincronizar.html", plan=plan, aparato=aparato)
 
 
@@ -1160,7 +1165,7 @@ def hacer_sincronizacion():
 
         _preparar_cache()
         trabajo.anotar("Mirando por dónde va cada libro…")
-        plan = sincronizacion.plan_de_sincronizacion(catalogo(), aparato)
+        plan = sincronizacion.plan_de_sincronizacion(catalogo(), aparato, _LIBROS)
         trabajo.pasos = max(1, len(plan["a_la_app"]) + len(plan["al_aparato"]))
         resultado = sincronizacion.aplicar(
             catalogo(), plan, _LIBROS, ajustes().datos / "copias-aparatos",

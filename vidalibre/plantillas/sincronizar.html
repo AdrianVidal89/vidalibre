@@ -12,6 +12,12 @@
   {% endif %}
 </p>
 
+<p class="explica"><b>Los porcentajes no van a coincidir, y es normal.</b> El Kobo cuenta su
+  avance por documentos del libro y aquí se cuenta por palabras leídas; en un libro con mucha
+  portadilla delante eso son varios puntos de diferencia estando los dos en el mismo sitio
+  (medido: 12 % en el Kobo y 8 % aquí, con la lectura en el mismo capítulo). Por eso lo que se
+  compara es <b>el capítulo</b>, no el porcentaje.</p>
+
 {% macro tabla(lineas, titulo, nota) %}
   {% if lineas %}
   <h2>{{ titulo }}</h2>
@@ -21,9 +27,13 @@
     <li>
       <a href="{{ url_for('paginas.libro', id_libro=linea.libro) }}">{{ linea.titulo }}</a>
       <span class="numeros">
-        app <b>{{ (linea.fraccion_app * 100) | round | int }}%</b>
-        →
-        aparato <b>{{ (linea.fraccion_aparato * 100) | round | int }}%</b>
+        {% if linea.capitulo_app is not none and linea.capitulo_del_aparato is not none %}
+          {# Por capítulo, que es lo único que significa lo mismo en los dos. #}
+          app <b>cap. {{ linea.capitulo_app }}</b> → aparato <b>cap. {{ linea.capitulo_del_aparato }}</b>
+        {% else %}
+          app <b>{{ (linea.fraccion_app * 100) | round | int }}%</b>
+          → aparato <b>{{ (linea.fraccion_aparato * 100) | round | int }}%</b>
+        {% endif %}
       </span>
     </li>
     {% endfor %}
