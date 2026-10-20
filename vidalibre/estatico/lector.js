@@ -107,6 +107,9 @@
     // cuando el número de páginas es el de verdad.
     medir();
     colocar(estado.destino || {});
+    // Si se ha llegado pasando de página, cuenta como lectura; si es un
+    // salto (índice, búsqueda), apuntarLectura lo descarta por grande.
+    apuntarLectura();
     marco.contentWindow.addEventListener("load", function () { medir(true); });
     setTimeout(function () { medir(true); }, 350);
     cargando.hidden = true;
@@ -149,7 +152,7 @@
     var estiloCuerpo = marco.contentWindow.getComputedStyle(doc.body);
     var altoLinea = parseFloat(estiloCuerpo.lineHeight) || (ajustes.tam * ajustes.inter);
     var arriba = 30;                       // aire de arriba (y sitio bajo la barra)
-    var abajo = 22 + 26;                   // aire + sitio para la barra de estado
+    var abajo = Math.max(22 + 26, altoPie() + 10);   // aire + sitio para el pie
     var disponible = altoVisible - arriba - abajo;
     var lineas = Math.max(3, Math.floor(disponible / altoLinea));
     var altoTexto = lineas * altoLinea;
@@ -190,6 +193,12 @@
     if (typeof destino.pagina === "number") {
       irA(destino.pagina, false);
     } else if (typeof destino.fraccion === "number") {
+      if (ajustes.modo === "desplazar") {
+        var rollo = desplazador();
+        rollo.scrollTop = destino.fraccion * Math.max(0, rollo.scrollHeight - rollo.clientHeight);
+        pintarEstado();
+        return;
+      }
       irA(Math.round(destino.fraccion * (estado.paginas - 1)), false);
     } else if (destino.ultima) {
       irA(estado.paginas - 1, false);
@@ -215,6 +224,7 @@
       }
     }
     pintarEstado();
+    if (animar !== false) apuntarLectura();
     guardarPosicion();
   }
 
@@ -243,28 +253,165 @@
   }
 
   // ------------------------------------------------------------- progreso
+  // En modo desplazar quien se desplaza es el <body> del marco (o el
+  // documento, según el navegador): se mira cuál de los dos tiene recorrido.
+  function desplazador() {
+    var doc = estado.documento;
+    var cuerpo = doc.body;
+    return cuerpo.scrollHeight > cuerpo.clientHeight + 1 ? cuerpo : (doc.scrollingElement || doc.documentElement);
+  }
+
+  // Cuánto del capítulo actual queda atrás, de 0 a 1.
+  function fraccionCapitulo() {
+    if (!estado.documento) return 0;
+    if (ajustes.modo === "desplazar") {
+      var rollo = desplazador();
+      var recorrido = rollo.scrollHeight - rollo.clientHeight;
+      return recorrido > 0 ? Math.max(0, Math.min(1, rollo.scrollTop / recorrido)) : 0;
+    }
+    return estado.paginas > 1 ? estado.pagina / (estado.paginas - 1) : 0;
+  }
+
   function fraccionLibro() {
     var fracciones = inicio.fracciones || [];
     var palabras = inicio.palabras_capitulo || [];
     var desde = fracciones[estado.capitulo] || 0;
     var trozo = (palabras[estado.capitulo] || 0) / (inicio.palabras || 1);
-    var dentro = estado.paginas > 1 ? estado.pagina / (estado.paginas - 1) : 0;
-    return Math.max(0, Math.min(1, desde + trozo * dentro));
+    return Math.max(0, Math.min(1, desde + trozo * fraccionCapitulo()));
   }
+
+  // Palabras que quedan, del capítulo y del libro entero.
+  function palabrasQuedan() {
+    var palabras = inicio.palabras_capitulo || [];
+    var capitulo = (palabras[estado.capitulo] || 0) * (1 - fraccionCapitulo());
+    var libro = capitulo;
+    for (var i = estado.capitulo + 1; i < palabras.length; i++) libro += palabras[i] || 0;
+    return { capitulo: capitulo, libro: libro };
+  }
+
+  // ----------------------------------------------------- velocidad de lectura
+  // Se aprende de cómo lees tú: cada vez que avanzas, se apuntan las palabras
+  // que has dejado atrás y el tiempo que te ha llevado. Los saltos (índice,
+  // búsqueda), las vueltas atrás y los ratos con el móvil olvidado no cuentan.
+  // Las lecturas viejas pesan cada vez menos, y hasta que hay datos manda
+  // una velocidad media de 230 palabras por minuto.
+  var PPM_DE_PARTIDA = 230;
+  var MINUTOS_DE_PARTIDA = 3;     // cuánto «pesa» esa media frente a lo medido
+  var velocidad = cargarVelocidad();
+  var ultimaMarca = null;
+
+  function cargarVelocidad() {
+    try {
+      var v = JSON.parse(localStorage.getItem("vidalibre:velocidad") || "null");
+      if (v && v.palabras >= 0 && v.minutos >= 0) return v;
+    } catch (e) {}
+    return { palabras: 0, minutos: 0 };
+  }
+
+  function palabrasPorMinuto() {
+    return (velocidad.palabras + PPM_DE_PARTIDA * MINUTOS_DE_PARTIDA) /
+           (velocidad.minutos + MINUTOS_DE_PARTIDA);
+  }
+
+  function apuntarLectura() {
+    var ahora = Date.now();
+    var donde = fraccionLibro() * (inicio.palabras || 0);
+    var antes = ultimaMarca;
+    var nueva = { palabras: donde, t: ahora };
+    if (!antes || document.visibilityState === "hidden") { ultimaMarca = nueva; return; }
+    var leidas = donde - antes.palabras;
+    var minutos = (ahora - antes.t) / 60000;
+    // Muy seguido (desplazando, o pasando páginas a toda prisa): se deja
+    // la marca de antes y se mide todo junto en el siguiente movimiento.
+    if (leidas >= 0 && minutos < 2 / 60) return;
+    ultimaMarca = nueva;
+    if (leidas <= 0 || leidas > 1500) return;           // atrás o un salto
+    if (minutos > 8) return;                            // se fue a otra cosa
+    var ppm = leidas / minutos;
+    if (ppm < 40 || ppm > 1200) return;                 // ni leyendo ni hojeando
+    velocidad.palabras = velocidad.palabras * 0.98 + leidas;
+    velocidad.minutos = velocidad.minutos * 0.98 + minutos;
+    try { localStorage.setItem("vidalibre:velocidad", JSON.stringify(velocidad)); } catch (e) {}
+  }
+
+  function textoTiempo(palabras) {
+    var minutos = Math.round(palabras / palabrasPorMinuto());
+    if (minutos < 1) return "menos de 1 min";
+    if (minutos < 60) return minutos + " min";
+    var horas = Math.floor(minutos / 60);
+    var resto = minutos % 60;
+    return horas + " h" + (resto ? " " + (resto < 10 ? "0" : "") + resto + " min" : "");
+  }
+
+  // ------------------------------------------------------------------- pie
+  // La línea fija de abajo, como en el Kindle. Al tocarla alterna entre lo
+  // que queda del capítulo y lo que queda del libro.
+  var pie = document.getElementById("pie");
+  var vistaPie = "capitulo";
+  try { vistaPie = localStorage.getItem("vidalibre:pie") === "libro" ? "libro" : "capitulo"; } catch (e) {}
+
+  function altoPie() {
+    if (!pie) return 0;
+    return Math.ceil(window.innerHeight - pie.getBoundingClientRect().top);
+  }
+
+  // Páginas que quedan: en modo páginas se cuentan; en modo desplazar son
+  // pantallas, y en el libro entero se estiman con las palabras por página
+  // del capítulo que se está leyendo.
+  function paginasQuedan(quedan) {
+    var capitulo;
+    var palabrasPagina;
+    var palabras = (inicio.palabras_capitulo || [])[estado.capitulo] || 0;
+    if (ajustes.modo === "desplazar") {
+      var rollo = desplazador();
+      var pantalla = rollo.clientHeight || 1;
+      capitulo = Math.ceil(Math.max(0, rollo.scrollHeight - rollo.scrollTop - pantalla) / pantalla);
+      palabrasPagina = palabras / Math.max(1, Math.ceil(rollo.scrollHeight / pantalla));
+    } else {
+      capitulo = estado.paginas - 1 - estado.pagina;
+      palabrasPagina = palabras / Math.max(1, estado.paginas);
+    }
+    var libro = palabrasPagina > 20 ? Math.round(capitulo + (quedan.libro - quedan.capitulo) / palabrasPagina) : null;
+    return { capitulo: capitulo, libro: libro };
+  }
+
+  function pintarPie() {
+    if (!pie || !estado.documento) return;
+    var quedan = palabrasQuedan();
+    var paginas = paginasQuedan(quedan);
+    var texto;
+    if (vistaPie === "libro") {
+      var ultimo = estado.capitulo >= inicio.capitulos - 1 && paginas.capitulo === 0;
+      texto = ultimo
+        ? "Última página del libro"
+        : Math.round(fraccionLibro() * 100) + "% · quedan " + textoTiempo(quedan.libro) +
+          (paginas.libro !== null ? " · ~" + paginas.libro + " págs." : "") + " del libro";
+    } else if (paginas.capitulo === 0) {
+      texto = "Última página del capítulo";
+    } else {
+      texto = (paginas.capitulo === 1 ? "Queda 1 pág." : "Quedan " + paginas.capitulo + " págs.") +
+              " del capítulo · " + textoTiempo(quedan.capitulo);
+    }
+    pie.textContent = texto;
+  }
+
+  if (pie) pie.addEventListener("click", function () {
+    vistaPie = vistaPie === "libro" ? "capitulo" : "libro";
+    try { localStorage.setItem("vidalibre:pie", vistaPie); } catch (e) {}
+    pintarPie();
+  });
 
   function pintarEstado() {
     var fraccion = fraccionLibro();
     document.getElementById("progreso").style.width = (fraccion * 100).toFixed(1) + "%";
-    var palabras = (inicio.palabras_capitulo || [])[estado.capitulo] || 0;
-    var restantes = Math.max(0, palabras * (1 - (estado.paginas > 1 ? estado.pagina / (estado.paginas - 1) : 0)));
-    var minutos = Math.round(restantes / 230);
+    var quedan = palabrasQuedan();
     document.getElementById("estado-izq").textContent =
       ajustes.modo === "desplazar"
         ? "Capítulo " + (estado.capitulo + 1) + " de " + inicio.capitulos
         : "Página " + (estado.pagina + 1) + " de " + estado.paginas;
     document.getElementById("estado-der").textContent =
       Math.round(fraccion * 100) + "% · " +
-      (minutos > 1 ? "quedan " + minutos + " min del capítulo" : "acabas el capítulo");
+      (quedan.capitulo / palabrasPorMinuto() >= 1 ? "quedan " + textoTiempo(quedan.capitulo) + " del capítulo" : "acabas el capítulo");
     var titulo = document.getElementById("titulo-capitulo");
     var entradas = inicio.indice || [];
     var nombre = "";
@@ -272,6 +419,7 @@
       if (entradas[i].capitulo <= estado.capitulo) nombre = entradas[i].titulo; else break;
     }
     titulo.textContent = nombre;
+    pintarPie();
   }
 
   var guardadoPendiente = null;
@@ -279,8 +427,7 @@
     if (guardadoPendiente) clearTimeout(guardadoPendiente);
     var enviar = function () {
       var cuerpo = JSON.stringify({
-        posicion: "c" + estado.capitulo + ":" +
-                  (estado.paginas > 1 ? (estado.pagina / (estado.paginas - 1)).toFixed(4) : 0),
+        posicion: "c" + estado.capitulo + ":" + fraccionCapitulo().toFixed(4),
         fraccion: fraccionLibro()
       });
       if (ahora && navigator.sendBeacon) {
@@ -342,7 +489,12 @@
 
     doc.addEventListener("keydown", teclado);
     if (ajustes.modo === "desplazar") {
-      marco.contentWindow.addEventListener("scroll", function () { guardarPosicion(); }, { passive: true });
+      var pintando = null;
+      doc.addEventListener("scroll", function () {
+        guardarPosicion();
+        if (pintando) return;
+        pintando = setTimeout(function () { pintando = null; pintarEstado(); apuntarLectura(); }, 400);
+      }, { passive: true, capture: true });
     }
   }
 
@@ -462,6 +614,7 @@
   window.addEventListener("pagehide", function () { guardarPosicion(true); });
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") guardarPosicion(true);
+    else ultimaMarca = null;   // el rato fuera no cuenta como lectura
   });
 
   // --------------------------------------------------------------- arranque

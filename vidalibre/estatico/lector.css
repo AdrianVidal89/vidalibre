@@ -82,6 +82,27 @@ body.sin-barras .barra-abajo { transform: translateY(110%); opacity: 0; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* La línea fija de abajo («Quedan 4 págs. del capítulo»). Por debajo de la
+   barra de estado, que la tapa cuando sale. */
+.pie {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  z-index: 9;
+  padding: 6px calc(env(safe-area-inset-right) + 16px)
+           calc(max(env(safe-area-inset-bottom), 6px) + 4px) calc(env(safe-area-inset-left) + 16px);
+  border: 0;
+  background: var(--papel);
+  color: var(--apagado);
+  font: inherit;
+  font-size: .74rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+}
+.pie:empty { visibility: hidden; }
+
 .progreso-lectura { height: 3px; border-radius: 99px; background: var(--borde); overflow: hidden; }
 .progreso-lectura i { display: block; height: 100%; width: 0; background: var(--acento); transition: width .25s; }
 .estado { display: flex; justify-content: space-between; gap: 10px; font-size: .74rem; color: var(--apagado); }
