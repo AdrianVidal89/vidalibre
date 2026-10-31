@@ -81,6 +81,17 @@ VENTANA_DIAS = 365
 # apunta, pero no entra en el cálculo del ritmo.
 MARGEN_FECHA_REAL = 60
 PALABRAS_POR_MINUTO = 230
+# Lo apuntado como «leído en tal año» también da ritmo: N libros en un año de
+# tal longitud son tantas palabras al día. Pero la memoria se borra: del año
+# pasado te acuerdas casi de todo, de hace cuatro te dejas la mitad, y un año
+# medio olvidado parece un año en que leíste poco. Por eso cada año pesa menos
+# cuanto más lejos queda, y de cinco años atrás ya no se usa para el ritmo.
+# (Antigüedad 0 = este año, 1 = el pasado…)
+PESO_POR_ANTIGUEDAD = {0: 1.0, 1: 1.0, 2: 0.7, 3: 0.35, 4: 0.15}
+# Un año de fechas reales pesa el doble que un año recordado: es un dato medido.
+PESO_MEDIDO = 2.0
+# Un trozo de año más corto que esto no da un ritmo de fiar.
+DIAS_MINIMOS_TRAMO = 30
 
 # Esperanza de vida que queda a cada edad, hombres, España, 2024.
 # Fuente: INE, Tablas de mortalidad (tabla 27153, función «Esperanza de vida»),
@@ -726,25 +737,27 @@ class Registro:
     def contador(self, progreso=None, sin_leer=0, dia=None):
         """«A este ritmo podrás leer N libros más en tu vida.»
 
-        - Solo cuentan las lecturas con **fechas reales** (empezadas desde que
-          existe el registro): de lo leído hace años no se sabe ni cuándo ni
-          cuánto se tardó.
-        - El ritmo va en **palabras al día**, no en libros: un tocho de mil
-          páginas no vale lo mismo que una novela corta.
-        - Lo que llevas del libro en curso también cuenta (`progreso`:
-          {obra: fracción}), y lo leído de un libro abandonado también: ese
-          tiempo lo has gastado igual.
-        - Los años que quedan salen de la tabla del INE para tu edad.
+        El ritmo (en **palabras al día**, no en libros: un tocho no vale lo
+        mismo que una novela corta) sale de dos fuentes que se mezclan:
+
+        - **Lo medido**: las lecturas con fechas reales del último año. Lo que
+          llevas del libro en curso también cuenta (`progreso`: {obra:
+          fracción}), y lo leído de un abandonado también.
+        - **Lo recordado**: los libros apuntados con su año (sin fechas, o con
+          fechas de antes del último año). Cada año da su ritmo, palabras ÷
+          días, y pesa según lo cerca que queda (`PESO_POR_ANTIGUEDAD`). Un año
+          sin nada apuntado no es un año sin leer, es un año sin datos: no
+          entra. Si lo medido ya cubre parte de un año, ese año solo cuenta
+          por el trozo de antes.
+
+        Los años que quedan salen de la tabla del INE para tu edad.
         """
         dia = dia or hoy()
         progreso = progreso or {}
         nacimiento = self.preferencia("nacimiento")
         filas = self._filas(
             "SELECT l.*, o.palabras, o.paginas FROM lecturas l JOIN obras o ON o.id = l.obra "
-            "WHERE l.fechada = 1 AND l.empezado IS NOT NULL")
-        medidas = [f for f in self._filas(
-            "SELECT o.palabras, o.paginas FROM lecturas l JOIN obras o ON o.id = l.obra "
-            "WHERE l.fechada = 1 AND l.estado = 'leido'")]
+            "WHERE l.estado IN ('leido', 'abandonado', 'leyendo')")
 
         def palabras_de(fila):
             if fila.get("palabras"):
@@ -753,44 +766,103 @@ class Registro:
                 return fila["paginas"] * PALABRAS_POR_PAGINA
             return None
 
-        conocidas = [p for p in (palabras_de(m) for m in medidas) if p]
+        # Lo que mide un libro tuyo: todo lo terminado cuya longitud se sabe,
+        # sea de cuando sea (una obra releída cuenta una vez).
+        largos = {f["obra"]: palabras_de(f) for f in filas if f["estado"] == "leido"}
+        conocidas = [p for p in largos.values() if p]
         longitud = round(sum(conocidas) / len(conocidas)) if conocidas else LONGITUD_POR_DEFECTO
 
+        def leidas_de(fila):
+            mide = palabras_de(fila) or longitud
+            if fila["estado"] == "leido":
+                return mide
+            if fila["estado"] == "abandonado":
+                return mide * (fila["fraccion"] or 0)
+            return mide * float(progreso.get(fila["obra"], 0) or 0)
+
+        # ------------------------------------------------------ lo medido
         inicio_ventana = date.fromordinal(dia.toordinal() - VENTANA_DIAS)
-        palabras, primer_dia, terminados = 0, None, 0
+        palabras, primer_dia, terminados, medidas = 0, None, 0, set()
         for fila in filas:
             empezado = a_fecha(fila["empezado"])
             terminado = a_fecha(fila["terminado"])
-            if not empezado:
+            if not fila["fechada"] or not empezado:
                 continue
             if terminado and terminado < inicio_ventana:
                 continue
+            medidas.add(fila["id"])
             primer_dia = min(primer_dia or empezado, empezado)
-            mide = palabras_de(fila) or longitud
-            if fila["estado"] == "leido":
-                palabras += mide
-                terminados += 1
-            elif fila["estado"] == "abandonado":
-                palabras += mide * (fila["fraccion"] or 0)
-            elif fila["estado"] == "leyendo":
-                palabras += mide * float(progreso.get(fila["obra"], 0) or 0)
-
+            palabras += leidas_de(fila)
+            terminados += fila["estado"] == "leido"
         dias = 0
         if primer_dia:
             primer_dia = max(primer_dia, inicio_ventana)
             dias = max(1, (dia - primer_dia).days + 1)
-        ritmo = palabras / dias if dias else 0.0
+        ritmo_medido = palabras / dias if dias else 0.0
+
+        # ---------------------------------------------------- lo recordado
+        # Lo medido tapa su propio trozo de calendario; cada año recordado
+        # cuenta solo hasta ahí.
+        tope = primer_dia or date.fromordinal(dia.toordinal() + 1)
+        por_anio = {}
+        for fila in filas:
+            if fila["id"] in medidas or fila["estado"] == "leyendo":
+                continue
+            anio = str(fila["terminado"] or "")[:4]
+            if not anio.isdigit():
+                continue
+            libro = por_anio.setdefault(int(anio), {"palabras": 0.0, "libros": 0})
+            libro["palabras"] += leidas_de(fila)
+            libro["libros"] += fila["estado"] == "leido"
+        anios = []
+        for anio, datos in sorted(por_anio.items(), reverse=True):
+            peso = PESO_POR_ANTIGUEDAD.get(dia.year - anio, 0)
+            desde = date(anio, 1, 1)
+            hasta = min(date(anio, 12, 31), tope - date.resolution, dia)
+            tramo = (hasta - desde).days + 1
+            if not peso or tramo < DIAS_MINIMOS_TRAMO or not datos["palabras"]:
+                continue
+            anios.append({
+                "anio": anio,
+                "hasta": hasta if hasta < date(anio, 12, 31) else None,
+                "libros": datos["libros"],
+                "ritmo": datos["palabras"] / tramo,
+                "peso": peso * tramo / 365,
+                "fiable": peso >= 0.7,
+            })
+
+        # ------------------------------------------------------- la mezcla
+        peso_medido = PESO_MEDIDO * dias / 365 if dias else 0.0
+        peso_total = peso_medido + sum(a["peso"] for a in anios)
+        ritmo = ((ritmo_medido * peso_medido + sum(a["ritmo"] * a["peso"] for a in anios))
+                 / peso_total) if peso_total else 0.0
+        fuentes = []
+        if dias:
+            fuentes.append({"que": f"Medido ({dias} día{'s' if dias != 1 else ''} con fechas)",
+                            "libros": terminados, "ritmo": round(ritmo_medido),
+                            "parte": round(100 * peso_medido / peso_total)})
+        for a in anios:
+            corte = f" (hasta el {a['hasta'].day}/{a['hasta'].month})" if a["hasta"] else ""
+            fuentes.append({"que": f"{a['anio']}{corte}, recordado", "libros": a["libros"],
+                            "ritmo": round(a["ritmo"]),
+                            "parte": round(100 * a["peso"] / peso_total)})
+        # Para dejar de «calibrar» hacen falta 3 libros, medidos o de años
+        # que todavía se recuerdan bien.
+        base = terminados + sum(a["libros"] for a in anios if a["fiable"])
 
         resultado = {
             "nacimiento": nacimiento,
             "terminados": terminados,
+            "base": base,
             "dias": dias,
             "ritmo": round(ritmo),
+            "ritmo_medido": round(ritmo_medido),
+            "fuentes": fuentes,
             "minutos_dia": round(ritmo / PALABRAS_POR_MINUTO) if ritmo else 0,
             "longitud": longitud,
             "longitud_medida": bool(conocidas),
-            "calibrando": terminados < MINIMO_PARA_CALIBRAR,
-            "faltan": max(0, MINIMO_PARA_CALIBRAR - terminados),
+            "calibrando": base < MINIMO_PARA_CALIBRAR,
+            "faltan": max(0, MINIMO_PARA_CALIBRAR - base),
             "sin_leer": sin_leer,
             "libros": None,
             "anos": None,
