@@ -147,4 +147,18 @@
     var lista = formulario.querySelector(".elegir");
     if (lista) lista.parentNode.insertBefore(boton, lista);
   });
+
+  // 7) Estrellas de media en media: el deslizador manda, aquí solo se pinta.
+  document.querySelectorAll("[data-estrellas]").forEach(function (caja) {
+    var campo = caja.querySelector("input[type=range]");
+    var salida = caja.querySelector("output");
+    if (!campo || !salida) return;
+    function pintar() {
+      var v = parseFloat(campo.value) || 0;
+      var enteras = Math.floor(v);
+      salida.textContent = v ? "\u2605".repeat(enteras) + (v - enteras >= 0.5 ? "\u00BD" : "") : "sin valorar";
+    }
+    campo.addEventListener("input", pintar);
+    pintar();
+  });
 })();

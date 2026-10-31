@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Apuntar un libro de fuera — {{ ajustes.titulo }}{% endblock %}
+{% block contenido %}
+<h1>Un libro que no tienes</h1>
+<p class="explica">Para los que leíste en papel, prestados o de la biblioteca. Se busca en <b>Open Library</b>
+  y se trae solo la ficha: portada, sinopsis, año y páginas. <b>El libro no.</b> Queda en tu diario,
+  marcado como de fuera, y no aparece en la biblioteca. Si algún día lo compras y lo subes, se pueden unir.</p>
+
+<form class="buscador-fuentes" method="get">
+  <input type="search" name="q" value="{{ consulta }}" placeholder="Título" autofocus required>
+  <input type="search" name="autor" value="{{ autor }}" placeholder="Autor (opcional)">
+  <button class="principal">Buscar</button>
+</form>
+
+{% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
+{% if consulta and not candidatos and not error %}
+<p class="vacio">Open Library no encuentra nada con eso. Prueba solo con el título, o con el título original.</p>
+{% endif %}
+
+<ul class="resultados-fuentes">
+  {% for c in candidatos %}
+  <li class="resultado">
+    <div class="resultado-portada">
+      {% if c.portada %}<img loading="lazy" src="{{ c.portada | replace('-L.jpg', '-M.jpg') }}" alt="">{% endif %}
+    </div>
+    <div class="resultado-datos">
+      <header>
+        <b>{{ c.titulo }}</b>
+        <span class="autor">{{ c.autores | join(', ') or 'Autor desconocido' }}</span>
+        <span class="origen">{% if c.publicado %}{{ c.publicado }}{% endif %}{% if c.paginas %} · {{ c.paginas }} páginas{% endif %}</span>
+      </header>
+      <form method="post" class="en-fila">
+        <input type="hidden" name="titulo" value="{{ c.titulo }}">
+        {% for a in c.autores %}<input type="hidden" name="autor" value="{{ a }}">{% endfor %}
+        <input type="hidden" name="publicado" value="{{ c.publicado or '' }}">
+        <input type="hidden" name="isbn" value="{{ c.isbn }}">
+        <input type="hidden" name="clave" value="{{ c.clave }}">
+        <input type="hidden" name="paginas" value="{{ c.paginas or '' }}">
+        <input type="hidden" name="portada" value="{{ c.portada }}">
+        <button name="que" value="leido" class="principal pequeno">Lo leí</button>
+        <button name="que" value="leyendo" class="pequeno">Lo estoy leyendo</button>
+        <button name="que" value="quiero" class="pequeno">Quiero leerlo</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

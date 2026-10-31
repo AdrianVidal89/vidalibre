@@ -45,6 +45,8 @@
   <nav class="menu">
     <a href="{{ url_for('paginas.inicio') }}" {% if seccion == 'biblioteca' %}class="activo"{% endif %}>
       <i aria-hidden="true">📚</i><span>Biblioteca</span></a>
+    <a href="{{ url_for('lecturas.panel') }}" {% if seccion == 'lecturas' %}class="activo"{% endif %}>
+      <i aria-hidden="true">🔖</i><span>Lecturas</span></a>
     <a href="{{ url_for('paginas.estantes', tipo='autores') }}" {% if request.endpoint == 'paginas.estantes' %}class="activo"{% endif %}>
       <i aria-hidden="true">🗂️</i><span>Estantes</span></a>
     <a href="{{ url_for('paginas.subir') }}" {% if request.endpoint == 'paginas.subir' %}class="activo"{% endif %}>

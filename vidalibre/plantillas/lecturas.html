@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block titulo %}Lecturas — {{ ajustes.titulo }}{% endblock %}
+
+{% macro fila_obra(l, extra="") %}
+<li class="fila-obra">
+  <a class="fila-obra-portada" href="{{ url_obra(l) }}">
+    <img loading="lazy" src="{{ portada_obra(l) }}" alt="" width="64" height="96">
+  </a>
+  <div class="fila-obra-datos">
+    <a class="titulo" href="{{ url_obra(l) }}">{{ l.titulo }}</a>
+    <span class="autor">{{ l.autores | join(', ') }}</span>
+    {% if l.de_fuera %}<span class="fuera-marca" title="Lo tienes en el diario, pero no el libro">No está en tu biblioteca</span>{% endif %}
+    {{ caller() if caller }}
+  </div>
+</li>
+{% endmacro %}
+
+{% block contenido %}
+<div class="titulo-barra">
+  <h1>Lecturas</h1>
+  <span class="cuantos">tu diario: lo que lees, lo que te deja y lo que te queda</span>
+</div>
+
+{# ------------------------------------------------------------ EL CONTADOR #}
+<section class="contador">
+  {% set c = contador %}
+  {% if not c.nacimiento %}
+  <p class="encima">El contador de toda una vida</p>
+  <p>Para calcular cuántos libros te quedan necesita tu año de nacimiento. Los años que quedan
+    salen de las tablas de mortalidad del INE para tu edad (hombres, España).</p>
+  <form method="post" action="{{ url_for('lecturas.ajustes') }}" class="en-linea">
+    <input type="number" name="nacimiento" min="1920" max="2025" inputmode="numeric" placeholder="Año, p. ej. 1989" required>
+    <button class="principal">Guardar</button>
+  </form>
+
+  {% elif c.libros is none %}
+  <p class="encima">A este ritmo podrás leer…</p>
+  <p class="cifra calibrando">¿?</p>
+  <p class="sub">Todavía no hay ritmo que medir. Marca <b>«Empiezo este libro»</b> en la ficha del
+    que vayas a leer y, al acabarlo, <b>«Lo he terminado»</b>. Lo leído en el pasado no cuenta:
+    de eso no sabes ni cuándo ni cuánto tardaste.</p>
+  <p class="detalle">Te quedan <b>{{ c.anos | round(1) }}</b> años de esperanza de vida a tus {{ c.edad }} (INE 2024).</p>
+
+  {% else %}
+  <p class="encima">A este ritmo podrás leer en tu vida</p>
+  <p class="cifra{% if c.calibrando %} calibrando{% endif %}"><span class="numero">~{{ "{:,}".format(c.libros).replace(",", ".") }}</span> libros más</p>
+  {% if c.calibrando %}
+  <p class="sub"><b>Calibrando:</b> con {{ c.terminados }} libro{{ 's' if c.terminados != 1 }} terminado{{ 's' if c.terminados != 1 }} la
+    cifra todavía baila mucho. Se asienta a partir del tercero ({{ 'falta' if c.faltan == 1 else 'faltan' }} {{ c.faltan }}).</p>
+  {% else %}
+  <p class="sub">Cada libro que empiezas es uno de esos. Elige bien.</p>
+  {% endif %}
+  <dl class="cifras">
+    <div><dt>Tu ritmo</dt><dd><b class="numero">{{ "{:,}".format(c.ritmo).replace(",", ".") }}</b> palabras al día · unos {{ c.minutos_dia }} min</dd></div>
+    <div><dt>Al año</dt><dd><b class="numero">{{ c.libros_al_ano }}</b> libros como los tuyos</dd></div>
+    <div><dt>Te quedan</dt><dd><b class="numero">{{ c.anos | round(1) }}</b> años, según el INE para un hombre de {{ c.edad }} en España</dd></div>
+    <div><dt>Sin leer en casa</dt><dd><b class="numero">{{ c.sin_leer }}</b> libros{% if c.sin_leer > c.libros %} — <span class="cruel">no te dará la vida para todos</span>{% endif %}</dd></div>
+    {% if c.con_15_minutos %}
+    <div><dt>Con 15 min más al día</dt><dd><b class="numero">~{{ "{:,}".format(c.con_15_minutos).replace(",", ".") }}</b> libros</dd></div>
+    {% endif %}
+  </dl>
+  <p class="detalle">Mide el ritmo en palabras, no en libros (un tocho no vale lo mismo que una novela corta),
+    con lo que has leído con fecha en el último año. Un libro tuyo mide de media
+    {{ "{:,}".format(c.longitud).replace(",", ".") }} palabras{% if not c.longitud_medida %} (estimado: aún no hay ninguno medido){% endif %}.</p>
+  {% endif %}
+</section>
+
+<div class="acciones">
+  <a class="boton" href="{{ url_for('lecturas.fuera') }}"><i aria-hidden="true">＋</i> Apuntar uno que no tengo</a>
+  <a class="boton" href="{{ url_for('lecturas.repaso') }}"><i aria-hidden="true">↻</i> Repasar la biblioteca</a>
+</div>
+
+{# ---------------------------------------------------------- LEYENDO AHORA #}
+{% if leyendo %}
+<section class="estante">
+  <div class="estante-cabeza"><h2>Leyendo ahora</h2></div>
+  <ul class="lista-obras">
+    {% for l in leyendo %}
+    {% call fila_obra(l) %}
+      <span class="meta">día {{ l.dias or 1 }}{% if l.progreso %} · vas por el {{ (l.progreso * 100) | round | int }}%{% endif %}</span>
+      {% if l.progreso %}<span class="progreso"><i style="transform: scaleX({{ l.progreso }})"></i></span>{% endif %}
+      <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=l.id, accion='terminar') }}">
+        <input type="hidden" name="volver" value="{{ url_for('lecturas.panel') }}">
+        <button class="principal pequeno">Lo he terminado</button>
+      </form>
+    {% endcall %}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# ------------------------------------------------- ¿LO HAS EMPEZADO? #}
+{% if propuestas %}
+<section class="estante">
+  <div class="estante-cabeza"><h2>¿Has empezado estos?</h2></div>
+  <p class="explica">Los has abierto en el lector y vas más allá del 5 %, pero no están apuntados.
+    Hojear no es empezar: por eso pregunta en vez de apuntarlo solo.</p>
+  <ul class="lista-obras">
+    {% for p in propuestas %}
+    <li class="fila-obra">
+      <a class="fila-obra-portada" href="{{ url_for('paginas.libro', id_libro=p.id) }}">
+        <img loading="lazy" src="{{ portada_url(p, mini=true) }}" alt="" width="64" height="96"></a>
+      <div class="fila-obra-datos">
+        <a class="titulo" href="{{ url_for('paginas.libro', id_libro=p.id) }}">{{ p.titulo }}</a>
+        <span class="autor">{{ p.autores | join(', ') }}</span>
+        <span class="meta">vas por el {{ (p.fraccion * 100) | round | int }}%{% if p.desde %} · abierto por primera vez el {{ p.desde | fecha }}{% endif %}</span>
+        <form method="post" action="{{ url_for('lecturas.accion_libro', id_libro=p.id, accion='empezar') }}" class="en-fila">
+          <input type="hidden" name="volver" value="{{ url_for('lecturas.panel') }}">
+          {% if p.desde %}<input type="hidden" name="fecha" value="{{ p.desde }}">{% endif %}
+          <button class="pequeno">Sí, {{ 'desde el ' ~ (p.desde | fecha('%d/%m')) if p.desde else 'desde hoy' }}</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# --------------------------------------------------- PENDIENTES DE RESEÑA #}
+{% if sin_resena %}
+<section class="estante">
+  <div class="estante-cabeza"><h2>¿Qué te parecieron?</h2><span class="cuantos">{{ sin_resena | length }} sin reseñar</span></div>
+  <ul class="lista-obras">
+    {% for l in sin_resena[:8] %}
+    {% call fila_obra(l) %}
+      <a class="boton pequeno" href="{{ url_for('lecturas.resena', id_lectura=l.id, volver=url_for('lecturas.panel')) }}">Reseñarlo</a>
+    {% endcall %}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------- PARA TI #}
+<section class="estante">
+  <div class="estante-cabeza">
+    <h2>Para ti</h2>
+    <span class="cuantos">{% if fecha_recomendaciones %}afinado el {{ fecha_recomendaciones | fecha }}{% endif %}</span>
+  </div>
+  {% if pendientes %}
+  <p class="explica"><b>{{ pendientes }}</b> reseña{{ 's' if pendientes != 1 }} esperando. Dile a Claude
+    «procesa mis lecturas» y las leerá para afinar lo que sale aquí.</p>
+  {% endif %}
+  {% if not para_ti_biblioteca and not para_ti_comprar %}
+  <p class="vacio">Todavía no hay recomendaciones. Salen de tus reseñas: cuantas más escribas, mejor apuntan.</p>
+  {% endif %}
+  {% if para_ti_biblioteca %}
+  <h3 class="sub-estante">De tu biblioteca, sin leer</h3>
+  <ul class="lista-obras">
+    {% for r in para_ti_biblioteca %}
+    {% set datos = r %}
+    <li class="fila-obra">
+      <a class="fila-obra-portada" href="{{ url_for('paginas.libro', id_libro=r.libro) }}">
+        <img loading="lazy" src="{{ portada_obra({'libro': r.libro, 'id': 0}) }}" alt="" width="64" height="96"></a>
+      <div class="fila-obra-datos">
+        <a class="titulo" href="{{ url_for('paginas.libro', id_libro=r.libro) }}">{{ r.titulo or 'Libro de la biblioteca' }}</a>
+        {% if r.autores %}<span class="autor">{{ r.autores | join(', ') }}</span>{% endif %}
+        {% if r.motivo %}<p class="motivo">{{ r.motivo }}</p>{% endif %}
+        <div class="en-fila">
+          <form method="post" action="{{ url_for('lecturas.recomendacion', id_recomendacion=r.id, accion='quiero') }}"><button class="pequeno">Quiero leerlo</button></form>
+          <form method="post" action="{{ url_for('lecturas.recomendacion', id_recomendacion=r.id, accion='descartar') }}"><button class="suave pequeno">No me apetece</button></form>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if para_ti_comprar %}
+  <h3 class="sub-estante">Para conseguir</h3>
+  <ul class="lista-obras">
+    {% for r in para_ti_comprar %}
+    <li class="fila-obra">
+      <span class="fila-obra-portada">
+        {% if r.portada_url %}<img loading="lazy" src="{{ r.portada_url }}" alt="" width="64" height="96">
+        {% else %}<img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="64" height="96">{% endif %}
+      </span>
+      <div class="fila-obra-datos">
+        <span class="titulo">{{ r.titulo }}</span>
+        <span class="autor">{{ r.autores | join(', ') }}{% if r.anio %} · {{ r.anio }}{% endif %}</span>
+        <span class="fuera-marca">No está en tu biblioteca</span>
+        {% if r.motivo %}<p class="motivo">{{ r.motivo }}</p>{% endif %}
+        <div class="en-fila">
+          <form method="post" action="{{ url_for('lecturas.recomendacion', id_recomendacion=r.id, accion='quiero') }}"><button class="pequeno">Quiero leerlo</button></form>
+          <form method="post" action="{{ url_for('lecturas.recomendacion', id_recomendacion=r.id, accion='descartar') }}"><button class="suave pequeno">No me apetece</button></form>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+{# ----------------------------------------------------------- QUIERO LEER #}
+{% if quiero %}
+<section class="estante">
+  <div class="estante-cabeza"><h2>Quiero leer</h2><span class="cuantos">{{ quiero | length }}</span></div>
+  <ul class="lista-obras">
+    {% for l in quiero %}
+    {% call fila_obra(l) %}
+      {% if l.relectura %}<span class="meta">relectura</span>{% endif %}
+      <form method="post" action="{{ url_for('lecturas.accion_obra', id_obra=l.obra, accion='empezar') }}">
+        <input type="hidden" name="volver" value="{{ url_for('lecturas.panel') }}">
+        <button class="pequeno">Lo empiezo hoy</button>
+      </form>
+    {% endcall %}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# ------------------------------------------------- YA EN LA BIBLIOTECA #}
+{% if coincidencias %}
+<section class="estante">
+  <div class="estante-cabeza"><h2>Ya los tienes</h2></div>
+  <p class="explica">Estos los apuntaste como libros de fuera y ahora parecen estar en la biblioteca.
+    Al unirlos, sus lecturas y reseñas pasan al libro de verdad.</p>
+  <ul class="lista-obras">
+    {% for c in coincidencias %}
+    {% call fila_obra(c.obra) %}
+      <span class="meta">→ en la biblioteca: <a href="{{ url_for('paginas.libro', id_libro=c.libro.id) }}">{{ c.libro.titulo }}</a></span>
+      <form method="post" action="{{ url_for('lecturas.asociar', id_obra=c.obra.id) }}">
+        <input type="hidden" name="libro" value="{{ c.libro.id }}">
+        <button class="principal pequeno">Unirlos</button>
+      </form>
+    {% endcall %}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------ HISTORIAL #}
+<section class="estante">
+  <div class="estante-cabeza"><h2>Historial</h2></div>
+  {% if not historial %}
+  <p class="vacio">Aún no hay nada leído apuntado. Empieza por <a href="{{ url_for('lecturas.repaso') }}">repasar la biblioteca</a>:
+    tres toques por libro.</p>
+  {% endif %}
+  {% for anio in historial %}
+  <details class="anio" {% if loop.first %}open{% endif %}>
+    <summary>
+      <b>{{ 'Hace tiempo (sin fecha)' if anio.anio == 'antes' else anio.anio }}</b>
+      <span class="cuantos">{{ anio.leidos }} leído{{ 's' if anio.leidos != 1 }}{% if anio.abandonados %} · {{ anio.abandonados }} abandonado{{ 's' if anio.abandonados != 1 }}{% endif %}{% if anio.media %} · media {{ anio.media }} ★{% endif %}</span>
+      {% if anio.sensaciones %}<span class="sensaciones">{% for s in anio.sensaciones %}<span class="chip">{{ s }}</span>{% endfor %}</span>{% endif %}
+    </summary>
+    <ul class="lista-obras compacta">
+      {% for l in anio.lecturas %}
+      {% call fila_obra(l) %}
+        <span class="meta">
+          {% if l.estado == 'abandonado' %}abandonado{% if l.fraccion %} al {{ (l.fraccion * 100) | round | int }}%{% endif %}{% endif %}
+          {% if l.estrellas %}<span class="estrellas-fijas">{{ estrellas(l.estrellas) }}</span>{% endif %}
+          {% if l.recuerdo and l.recuerdo != 'bien' %} · {{ NOMBRE_RECUERDO[l.recuerdo] | lower }}{% endif %}
+          {% if l.decision == 'soltar' %} · soltado{% endif %}
+          {% if l.relectura %} · relectura{% endif %}
+        </span>
+      {% endcall %}
+      {% endfor %}
+    </ul>
+  </details>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -47,8 +47,65 @@ motor va entero aquí dentro.
 - **Traer libros nuevos**: búsqueda en Project Gutenberg y Standard Ebooks, y
   relleno de fichas, **sinopsis** y portadas desde Open Library.
 - **Aviso de DRM**: si un libro viene con candado, se dice claro y pronto.
+- **Diario de lecturas**: qué has leído, reseñas con estrellas y sensaciones,
+  libros que leíste y no tienes, y un contador de cuántos libros te quedan en
+  la vida a tu ritmo. Ver *El diario de lecturas*.
 - **OPDS**: KOReader, Moon+ Reader o Panels se conectan a `/opds` y navegan la
   biblioteca y se descargan los libros solos.
+
+## El diario de lecturas
+
+La pestaña **Lecturas** lleva la cuenta de lo que lees, al estilo de Goodreads y
+StoryGraph pero en casa y sin red social:
+
+- **Estados**: *quiero leer*, *leyendo*, *leído* y **abandonado** (Goodreads no
+  lo tiene y es su queja más repetida). Cada relectura es una lectura aparte,
+  con sus fechas y su reseña.
+- **Reseña**: estrellas de media en media, **cómo te hizo sentir** (me removió,
+  me dejó pensando, evasión pura, angustioso, aburrido, reconfortante), ritmo y
+  texto libre. Las estrellas se copian también a la valoración de Calibre.
+- **Cuánto lo recuerdas**, para lo leído hace años: bien, borroso u olvidado. Si
+  es borroso u olvidado se decide **releerlo** (pasa a *quiero leer*) o
+  **soltarlo** (queda en el historial, sin reseña y sin pesar en las
+  recomendaciones).
+- **Modo repaso**: recorre la biblioteca libro a libro para la carga inicial.
+- **Libros de fuera**: los que leíste y no tienes se buscan en Open Library (la
+  ficha, nunca el libro), llevan la marca *No está en tu biblioteca* y no salen
+  en la biblioteca, el buscador ni el OPDS. Si luego lo subes, Vidalibre lo
+  reconoce (por ISBN o título y autor) y propone **unirlos**.
+- **Propone, no apunta**: si abres un libro en el lector y pasas del 5 % sin
+  haberlo marcado, pregunta «¿lo has empezado?» con el día en que lo abriste.
+
+### El contador
+
+*A este ritmo podrás leer N libros más en tu vida.* Las cuentas:
+
+- Solo cuentan las lecturas con **fechas reales** (empezadas desde que existe el
+  registro). Lo leído hace años sale en el historial pero no en el ritmo.
+- El ritmo va en **palabras al día**, contadas en el EPUB (el lector ya las
+  cuenta); para un libro de fuera, páginas × 275. Ventana: el último año.
+- Los años que quedan salen de la **tabla de mortalidad del INE 2024** (hombres,
+  España) para tu edad, interpolada; se ajusta sola según cumples años.
+- Libros = ritmo × días que quedan ÷ lo que mide de media un libro tuyo.
+- Hasta tener 3 libros terminados con fecha dice **calibrando**.
+
+### Dónde se guarda
+
+En `lecturas.db`, en la carpeta de datos, **aparte del catálogo**: así caben los
+libros de fuera sin que Calibre los vea, y el catálogo sigue intacto. El
+despliegue le hace copia igual que a `metadata.db`. Solo existe en la biblioteca
+de casa; la copia del portátil lleva allí.
+
+### Para que Claude procese las reseñas
+
+Las reseñas nacen *pendientes de procesar*. Sin contraseña, como el resto:
+
+| | |
+|---|---|
+| `GET /api/lecturas` | todo el diario, el contador y las recomendaciones |
+| `GET /api/lecturas/pendientes` | reseñas sin procesar |
+| `POST /api/lecturas/procesadas` | `{"lecturas": [ids]}` las marca como leídas |
+| `POST /api/lecturas/recomendaciones` | carga la fila «Para ti»: `{"recomendaciones": [{"libro": 12, "motivo": "…"}, {"titulo": "…", "autores": ["…"], "anio": 1999, "portada": "url", "clave_ol": "/works/…", "motivo": "…"}]}` (sustituye a las anteriores salvo `"reemplazar": false`) |
 
 ## El lector
 

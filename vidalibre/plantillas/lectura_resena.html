@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block titulo %}Reseña de {{ obra.titulo }} — {{ ajustes.titulo }}{% endblock %}
+{% block contenido %}
+<div class="resena-cabeza">
+  <img src="{{ portada_obra(obra) }}" alt="" width="96" height="144">
+  <div>
+    <p class="encima">{% if recien %}Terminado. ¿Qué te ha dejado?{% else %}Tu reseña{% endif %}</p>
+    <h1>{{ obra.titulo }}</h1>
+    <p class="autores">{{ obra.autores | join(', ') }}</p>
+    {% if obra.de_fuera %}<span class="fuera-marca">No está en tu biblioteca</span>{% endif %}
+  </div>
+</div>
+
+<form method="post" class="formulario resena">
+  <input type="hidden" name="volver" value="{{ volver }}">
+
+  <fieldset>
+    <legend>Estrellas</legend>
+    <div class="estrellas-elegir" data-estrellas>
+      <input type="range" name="estrellas" min="0" max="5" step="0.5"
+             value="{{ lectura.estrellas or 0 }}" aria-label="Estrellas, de media en media">
+      <output class="estrellas-fijas" aria-live="polite">{{ estrellas(lectura.estrellas) or 'sin valorar' }}</output>
+    </div>
+    <p class="explica">De media en media. A cero, sin valorar. {% if not obra.de_fuera %}Se copian también a la ficha de Calibre.{% endif %}</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>¿Cómo te hizo sentir?</legend>
+    <div class="marcar-chips">
+      {% for clave, nombre in SENSACIONES %}
+      <label class="chip-casilla"><input type="checkbox" name="sensacion" value="{{ clave }}" {% if clave in lectura.sensaciones %}checked{% endif %}><span>{{ nombre }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Ritmo</legend>
+    <div class="marcar-chips">
+      {% for clave, nombre in RITMOS %}
+      <label class="chip-casilla"><input type="radio" name="ritmo" value="{{ clave }}" {% if lectura.ritmo == clave %}checked{% endif %}><span>{{ nombre }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <label>Con tus palabras
+    <textarea name="texto" rows="7" placeholder="Qué te removió, qué te sobró, en qué pensabas al cerrarlo… Es para ti (y para afinar las recomendaciones), no para nadie más.">{{ lectura.texto or '' }}</textarea>
+  </label>
+
+  <div class="acciones">
+    <button class="principal grande">Guardar la reseña</button>
+    <a class="boton suave" href="{{ volver }}">Ahora no</a>
+  </div>
+</form>
+{% endblock %}

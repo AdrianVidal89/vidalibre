@@ -817,6 +817,192 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .resultado .acciones { margin: 0; }
 
+
+/* ------------------------------------------------------------------ LECTURAS
+   El diario: el contador, las filas de libros y el recuadro «Mi lectura». */
+.contador {
+  position: relative; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--borde);
+  border-radius: calc(var(--radio) + 6px); padding: 28px 30px; margin: 6px 0 18px;
+}
+.contador::before {
+  content: ""; position: absolute; inset: -50% 45% 30% -25%;
+  background: radial-gradient(closest-side, var(--acento-flojo), transparent 72%);
+  pointer-events: none;
+}
+.contador > * { position: relative; }
+.contador .encima, .resena-cabeza .encima {
+  text-transform: uppercase; letter-spacing: .09em; font-size: .68rem;
+  font-weight: 600; color: var(--acento); margin: 0 0 8px;
+}
+.contador .cifra {
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: clamp(1.4rem, 3vw, 1.9rem); margin: 0 0 8px; line-height: 1.1;
+}
+.contador .cifra .numero {
+  font-size: clamp(3rem, 9vw, 4.6rem); color: var(--acento); font-weight: 500;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin-right: .15em;
+}
+.contador .cifra.calibrando .numero, .contador .cifra.calibrando { opacity: .55; }
+.contador .sub { margin: 0 0 18px; max-width: 62ch; }
+.contador .detalle { color: var(--suave); font-size: .82rem; margin: 14px 0 0; max-width: 70ch; }
+.cifras {
+  display: grid; gap: 10px; margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.cifras > div {
+  background: var(--panel-alto); border-radius: var(--radio-chico); padding: 10px 13px;
+}
+.cifras dt {
+  color: var(--suave); font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+}
+.cifras dd { margin: 2px 0 0; font-size: .88rem; }
+.cifras b { font-size: 1.1rem; }
+.numero { font-variant-numeric: tabular-nums; }
+.cruel { color: var(--atencion); }
+
+.sub-estante {
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--suave); margin: 18px 0 10px;
+}
+.lista-obras {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+.fila-obra {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: var(--panel); border: 1px solid var(--borde);
+  border-radius: var(--radio); padding: 12px 14px;
+}
+.fila-obra-portada { flex: 0 0 64px; }
+.fila-obra-portada img {
+  display: block; width: 64px; height: auto; aspect-ratio: 2 / 3; object-fit: cover;
+  border-radius: 6px; background: var(--panel-alto);
+}
+.fila-obra-datos { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.fila-obra-datos .titulo {
+  font-weight: 600; text-decoration: none; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.fila-obra-datos .autor { color: var(--suave); font-size: .82rem; }
+.fila-obra-datos .meta { color: var(--suave); font-size: .8rem; }
+.fila-obra-datos .progreso { width: 100%; margin: 4px 0; }
+.fila-obra-datos form { margin-top: 6px; }
+.fila-obra .motivo { margin: 4px 0 0; font-size: .86rem; line-height: 1.45; }
+.lista-obras.compacta .fila-obra { padding: 9px 12px; }
+.lista-obras.compacta .fila-obra-portada, .lista-obras.compacta .fila-obra-portada img { width: 44px; flex-basis: 44px; }
+.en-fila { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* La marca de «no está en tu biblioteca»: que se vea a la primera. */
+.fuera-marca {
+  display: inline-block; font-size: .66rem; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--atencion);
+  border: 1px dashed var(--atencion); border-radius: var(--pastilla); padding: 1px 8px;
+}
+.fuera-marca.grande { font-size: .72rem; padding: 3px 11px; margin: 0 0 10px; }
+
+.anio {
+  background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: 12px 16px; margin-bottom: 10px;
+}
+.anio summary {
+  cursor: pointer; display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center;
+}
+.anio summary b { font-size: 1.05rem; }
+.anio summary .cuantos { color: var(--suave); font-size: .84rem; }
+.anio[open] summary { margin-bottom: 12px; }
+.sensaciones { display: flex; gap: 5px; flex-wrap: wrap; margin: 4px 0; }
+.sensaciones .chip { font-size: .74rem; padding: 2px 9px; }
+.sensaciones .chip.suave { color: var(--suave); }
+.estrellas-fijas { color: var(--acento); letter-spacing: .08em; margin: 0; }
+
+/* El recuadro «Mi lectura» de la ficha. */
+.mi-lectura {
+  background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: 16px 20px; margin: 0 0 22px; scroll-margin-top: 90px;
+}
+.mi-lectura h2 {
+  margin: 0 0 10px; font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--suave);
+}
+.mi-lectura .acciones { margin: 10px 0 4px; }
+.estado-lectura { margin: 0 0 4px; }
+.estado-lectura i { font-style: normal; margin-right: 4px; }
+.mi-lectura .cruel { margin: 0 0 6px; font-size: .9rem; }
+details.mini { margin-top: 10px; }
+details.mini > summary { cursor: pointer; color: var(--suave); font-size: .86rem; }
+details.mini[open] > summary { margin-bottom: 10px; }
+.lecturas-pasadas { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+.lectura-pasada { border-top: 1px solid var(--borde); padding-top: 12px; }
+.lectura-pasada-cabeza { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.lectura-pasada .cuando { color: var(--suave); font-size: .84rem; }
+.resena-texto {
+  margin: 8px 0; padding: 4px 0 4px 14px; border-left: 3px solid var(--acento-apagado);
+  white-space: pre-line; line-height: 1.6; color: var(--texto);
+}
+.acciones.pequenas { gap: 8px; align-items: center; margin-top: 6px; }
+.recuerdo-actual { margin: 14px 0 0; font-size: .88rem; color: var(--suave); }
+.recuerdo-actual b { color: var(--texto); }
+.asociar { display: grid; gap: 8px; }
+.asociar p { margin: 0; }
+
+.recuerdo-form { display: grid; gap: 12px; }
+.recuerdo-form fieldset, .resena fieldset { border: none; padding: 0; margin: 0; }
+.opciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.opciones legend, .resena legend {
+  font-size: .82rem; color: var(--suave); margin-bottom: 8px; padding: 0;
+}
+.opciones .explica { flex-basis: 100%; margin: 4px 0 0; }
+
+/* Chips que se marcan: la casilla de verdad queda debajo, invisible pero
+   accesible con el teclado; lo que se ve es la pastilla. */
+.marcar-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip-casilla, .opcion { position: relative; display: inline-flex; margin: 0; cursor: pointer; }
+.chip-casilla input, .opcion input {
+  position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
+}
+.chip-casilla span, .opcion span {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 7px 15px;
+  border: 1px solid var(--borde); border-radius: var(--pastilla); background: var(--panel);
+  font-size: .9rem; user-select: none;
+  transition: background-color var(--t-pulsar) var(--salida), border-color var(--t-pulsar) var(--salida),
+              transform var(--t-pulsar) var(--salida);
+}
+.chip-casilla input:checked + span, .opcion input:checked + span {
+  background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); font-weight: 600;
+}
+.chip-casilla input:focus-visible + span, .opcion input:focus-visible + span {
+  outline: 2px solid var(--acento); outline-offset: 2px;
+}
+.chip-casilla:active span, .opcion:active span { transform: scale(0.97); }
+
+.estrellas-elegir { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.estrellas-elegir input[type=range] { flex: 1 1 220px; max-width: 320px; accent-color: var(--acento); min-height: 44px; }
+.estrellas-elegir output { font-size: 1.5rem; min-width: 6ch; }
+
+.resena-cabeza { display: flex; gap: 18px; align-items: center; margin: 4px 0 18px; }
+.resena-cabeza img { width: 96px; height: auto; border-radius: 8px; box-shadow: var(--sombra); }
+.resena-cabeza h1 {
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-weight: 500;
+  margin: 0 0 .2em; font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.15;
+}
+.resena-cabeza .autores { margin: 0 0 6px; }
+.formulario.resena { display: grid; gap: 22px; max-width: 760px; }
+.resena textarea { min-height: 160px; line-height: 1.55; }
+
+.repaso {
+  display: grid; grid-template-columns: minmax(150px, 230px) 1fr; gap: 28px;
+  background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: 22px; margin-top: 18px;
+}
+.repaso h2 {
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-weight: 500;
+  font-size: clamp(1.3rem, 3vw, 1.8rem); margin: 0 0 .2em;
+}
+.repaso .cubierta img { aspect-ratio: auto; }
+.repaso .ya-leido { margin: 18px 0 10px; }
+.repaso .ya-leido summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
+
 /* -------------------------------------------------------------------- RESTO */
 .acerca { max-width: 620px; margin: 0 auto; text-align: center; }
 .acerca .datos { text-align: left; margin-top: 24px; display: inline-grid; }
@@ -839,6 +1025,8 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
   .mosaico a:hover { border-color: var(--acento); }
   .elegir label:hover { border-color: var(--acento); }
   .resultado .marcas .casilla:hover { background: var(--panel-alto); }
+  .chip-casilla:hover span, .opcion:hover span { border-color: var(--acento); }
+  .fila-obra-datos .titulo:hover { color: var(--acento); }
 }
 @media (prefers-reduced-motion: reduce) {
   .tarjeta a:hover .cubierta { transform: none; }
@@ -877,6 +1065,15 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
   .resultado { flex-direction: column; }
   .resultado-portada img { width: 92px; }
   .apuntes-ficha { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+  .contador { padding: 20px; border-radius: var(--radio); }
+  .cifras { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cifras > div { padding: 9px 11px; }
+  .lista-obras { grid-template-columns: 1fr; }
+  .repaso { grid-template-columns: 1fr; padding: 16px; }
+  .repaso .cubierta { max-width: 170px; margin: 0 auto; }
+  .resena-cabeza img { width: 72px; }
+  .mi-lectura { padding: 14px 16px; }
+  .chip-casilla span, .opcion span { min-height: 44px; }
 }
 @media (max-width: 380px) {
   .carrusel { grid-auto-columns: 108px; }
