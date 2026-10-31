@@ -858,6 +858,8 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .cifras dd { margin: 2px 0 0; font-size: .88rem; }
 .cifras b { font-size: 1.1rem; }
+.fuentes-ritmo ul { margin: 0 0 8px; padding-left: 18px; font-size: .86rem; line-height: 1.6; }
+.fuentes-ritmo .explica { font-size: .8rem; margin: 0; max-width: 70ch; }
 .numero { font-variant-numeric: tabular-nums; }
 .cruel { color: var(--atencion); }
 

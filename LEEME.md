@@ -80,14 +80,21 @@ StoryGraph pero en casa y sin red social:
 
 *A este ritmo podrás leer N libros más en tu vida.* Las cuentas:
 
-- Solo cuentan las lecturas con **fechas reales** (empezadas desde que existe el
-  registro). Lo leído hace años sale en el historial pero no en el ritmo.
+- El ritmo mezcla dos fuentes. **Lo medido**: lecturas con fechas reales del
+  último año. **Lo recordado**: lo apuntado como leído en tal año; N libros de
+  tal longitud en un año son tantas palabras al día. Cada año recordado pesa
+  menos cuanto más lejos queda (este año y el pasado 100 %, hace dos 70 %, tres
+  35 %, cuatro 15 %, cinco o más nada), porque la memoria se deja libros y un
+  año medio olvidado parecería un año de leer poco. Un año sin nada apuntado no
+  cuenta como cero: no entra. Un año de fechas reales pesa el doble que uno
+  recordado. En la pantalla, «De dónde sale tu ritmo» enseña el desglose.
 - El ritmo va en **palabras al día**, contadas en el EPUB (el lector ya las
   cuenta); para un libro de fuera, páginas × 275. Ventana: el último año.
 - Los años que quedan salen de la **tabla de mortalidad del INE 2024** (hombres,
   España) para tu edad, interpolada; se ajusta sola según cumples años.
 - Libros = ritmo × días que quedan ÷ lo que mide de media un libro tuyo.
-- Hasta tener 3 libros terminados con fecha dice **calibrando**.
+- Hasta tener 3 libros de base (con fecha, o de los dos últimos años) dice
+  **calibrando**.
 
 ### Dónde se guarda
 

@@ -38,15 +38,15 @@
   <p class="encima">A este ritmo podrás leer…</p>
   <p class="cifra calibrando">¿?</p>
   <p class="sub">Todavía no hay ritmo que medir. Marca <b>«Empiezo este libro»</b> en la ficha del
-    que vayas a leer y, al acabarlo, <b>«Lo he terminado»</b>. Lo leído en el pasado no cuenta:
-    de eso no sabes ni cuándo ni cuánto tardaste.</p>
+    que vayas a leer y, al acabarlo, <b>«Lo he terminado»</b>. O apunta lo que leíste estos dos
+    últimos años con su año: con eso ya se puede calcular.</p>
   <p class="detalle">Te quedan <b>{{ c.anos | round(1) }}</b> años de esperanza de vida a tus {{ c.edad }} (INE 2024).</p>
 
   {% else %}
   <p class="encima">A este ritmo podrás leer en tu vida</p>
   <p class="cifra{% if c.calibrando %} calibrando{% endif %}"><span class="numero">~{{ "{:,}".format(c.libros).replace(",", ".") }}</span> libros más</p>
   {% if c.calibrando %}
-  <p class="sub"><b>Calibrando:</b> con {{ c.terminados }} libro{{ 's' if c.terminados != 1 }} terminado{{ 's' if c.terminados != 1 }} la
+  <p class="sub"><b>Calibrando:</b> con {{ c.base }} libro{{ 's' if c.base != 1 }} de base la
     cifra todavía baila mucho. Se asienta a partir del tercero ({{ 'falta' if c.faltan == 1 else 'faltan' }} {{ c.faltan }}).</p>
   {% else %}
   <p class="sub">Cada libro que empiezas es uno de esos. Elige bien.</p>
@@ -60,8 +60,21 @@
     <div><dt>Con 15 min más al día</dt><dd><b class="numero">~{{ "{:,}".format(c.con_15_minutos).replace(",", ".") }}</b> libros</dd></div>
     {% endif %}
   </dl>
+  {% if c.fuentes %}
+  <details class="mini fuentes-ritmo">
+    <summary>De dónde sale tu ritmo</summary>
+    <ul>
+      {% for f in c.fuentes %}
+      <li><b>{{ f.que }}</b>: {{ f.libros }} libro{{ 's' if f.libros != 1 }} → {{ "{:,}".format(f.ritmo).replace(",", ".") }} palabras al día · pesa un {{ f.parte }} %</li>
+      {% endfor %}
+    </ul>
+    <p class="explica">Lo leído con fechas es lo más fiable. Lo apuntado con su año también cuenta, pero
+      pesa menos cuanto más lejos queda: de hace dos años ya te habrás dejado alguno, y un año
+      medio olvidado parecería un año de leer poco. De hace cinco o más no se usa para el ritmo.</p>
+  </details>
+  {% endif %}
   <p class="detalle">Mide el ritmo en palabras, no en libros (un tocho no vale lo mismo que una novela corta),
-    con lo que has leído con fecha en el último año. Un libro tuyo mide de media
+    con lo medido en el último año y lo que apuntas de años recientes. Un libro tuyo mide de media
     {{ "{:,}".format(c.longitud).replace(",", ".") }} palabras{% if not c.longitud_medida %} (estimado: aún no hay ninguno medido){% endif %}.</p>
   {% endif %}
 </section>
