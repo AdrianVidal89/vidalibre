@@ -1,0 +1,161 @@
+{# Piezas del diario de lecturas que se repiten en varias pantallas. #}
+
+{% macro form_recuerdo(accion, boton="Guardar", con_anio=false, recuerdo=none, decision=none, volver="") %}
+<form method="post" action="{{ accion }}" class="recuerdo-form">
+  {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+  {% if con_anio %}
+  <label>¿Más o menos qué año? <small>(si no lo sabes, déjalo vacío)</small>
+    <input type="number" name="anio" min="1940" max="2100" inputmode="numeric" placeholder="p. ej. 2012">
+  </label>
+  {% endif %}
+  <fieldset class="opciones">
+    <legend>¿Cuánto lo recuerdas?</legend>
+    {% for clave, nombre in [('bien', 'Lo recuerdo bien'), ('borroso', 'Borroso'), ('olvidado', 'Olvidado')] %}
+    <label class="opcion"><input type="radio" name="recuerdo" value="{{ clave }}" {% if recuerdo == clave %}checked{% endif %} required><span>{{ nombre }}</span></label>
+    {% endfor %}
+  </fieldset>
+  <fieldset class="opciones si-borroso">
+    <legend>Si está borroso u olvidado, ¿qué hacemos?</legend>
+    <label class="opcion"><input type="radio" name="decision" value="releer" {% if decision == 'releer' %}checked{% endif %}><span>Quiero releerlo</span></label>
+    <label class="opcion"><input type="radio" name="decision" value="soltar" {% if decision == 'soltar' %}checked{% endif %}><span>Lo suelto</span></label>
+    <p class="explica">«Lo suelto» lo deja en tu historial como leído, sin pedirte reseña y sin que pese en
+      las recomendaciones. Hay que dejar sitio para lo nuevo.</p>
+  </fieldset>
+  <button class="principal">{{ boton }}</button>
+</form>
+{% endmacro %}
+
+
+{% macro lectura_pasada(l, volver="") %}
+<li class="lectura-pasada">
+  <div class="lectura-pasada-cabeza">
+    <b>{{ ESTADOS[l.estado] }}</b>
+    <span class="cuando">
+      {% if l.terminado %}{{ 'el ' ~ (l.terminado | fecha) if l.terminado | length > 4 else 'en ' ~ l.terminado }}{% else %}hace tiempo, sin fecha{% endif %}
+      {% if l.relectura %} · relectura{% endif %}
+      {% if l.estado == 'abandonado' and l.fraccion %} · al {{ (l.fraccion * 100) | round | int }}%{% endif %}
+      {% if l.fechada %} · <span title="Empezado y terminado con fecha: cuenta para tu ritmo">⏱</span>{% endif %}
+    </span>
+  </div>
+  {% if l.estrellas %}<p class="estrellas-fijas" aria-label="{{ l.estrellas }} estrellas">{{ estrellas(l.estrellas) }}</p>{% endif %}
+  {% if l.sensaciones %}
+  <p class="sensaciones">{% for s in l.sensaciones %}<span class="chip">{{ NOMBRE_SENSACION.get(s, s) }}</span>{% endfor %}
+    {% if l.ritmo %}<span class="chip suave">ritmo {{ NOMBRE_RITMO.get(l.ritmo, l.ritmo) | lower }}</span>{% endif %}</p>
+  {% endif %}
+  {% if l.texto %}<blockquote class="resena-texto">{{ l.texto }}</blockquote>{% endif %}
+  <div class="acciones pequenas">
+    {% if l.estado == 'leido' %}
+    <a class="boton pequeno" href="{{ url_for('lecturas.resena', id_lectura=l.id, volver=volver) }}">{{ 'Editar la reseña' if l.tiene_resena else 'Reseñarlo' }}</a>
+    {% endif %}
+    <details class="mini">
+      <summary>Corregir fechas</summary>
+      <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=l.id, accion='fechas') }}" class="en-linea">
+        <input type="hidden" name="volver" value="{{ volver }}">
+        <label>Empezado <input type="date" name="empezado" value="{{ l.empezado or '' }}"></label>
+        <label>Terminado <input type="text" name="terminado" value="{{ l.terminado or '' }}" placeholder="AAAA-MM-DD o AAAA" size="11"></label>
+        <button class="pequeno">Guardar</button>
+      </form>
+    </details>
+    <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=l.id, accion='borrar') }}"
+          data-confirmar="¿Borrar esta lectura{{ ' y su reseña' if l.tiene_resena }}?">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <button class="suave pequeno">Borrar</button>
+    </form>
+  </div>
+</li>
+{% endmacro %}
+
+
+{# El recuadro «Mi lectura». `base` es la dirección a la que se añade la acción:
+   /lecturas/libro/<id>/ para uno de la biblioteca, /lecturas/obra/<id>/ para uno de fuera. #}
+{% macro caja(base, obra, lecturas, leyendo, quiero, apertura, contador, hoy, volver) %}
+<section class="mi-lectura" id="mi-lectura">
+  <h2>Mi lectura</h2>
+
+  {% if leyendo %}
+  {% set dias = ((leyendo.empezado | dias_desde) or 0) + 1 %}
+  <p class="estado-lectura"><i aria-hidden="true">📖</i>
+    Leyendo desde el <b>{{ leyendo.empezado | fecha }}</b> · día {{ dias }}</p>
+  {% if contador and contador.libros and not contador.calibrando %}
+  <p class="cruel">Es uno de los <b>~{{ contador.libros }}</b> libros que te quedan.</p>
+  {% endif %}
+  <div class="acciones">
+    <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=leyendo.id, accion='terminar') }}" class="en-linea">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <input type="date" name="fecha" value="{{ hoy }}" max="{{ hoy }}" aria-label="Día en que lo terminaste">
+      <button class="principal">Lo he terminado</button>
+    </form>
+    <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=leyendo.id, accion='abandonar') }}"
+          data-confirmar="¿Lo dejas? Queda apuntado como abandonado, sin culpa.">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <button class="suave">Abandonarlo</button>
+    </form>
+  </div>
+  <details class="mini">
+    <summary>Corregir el día en que lo empecé</summary>
+    <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=leyendo.id, accion='fechas') }}" class="en-linea">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <input type="date" name="empezado" value="{{ leyendo.empezado }}" max="{{ hoy }}">
+      <button class="pequeno">Guardar</button>
+    </form>
+  </details>
+
+  {% else %}
+  {% if quiero %}
+  <p class="estado-lectura"><i aria-hidden="true">🔖</i> En «Quiero leer»{% if quiero.relectura %}, para releerlo{% endif %}.</p>
+  {% endif %}
+  {% if apertura and apertura != hoy %}
+  <p class="explica">Lo abriste en el lector por primera vez el {{ apertura | fecha }}.</p>
+  {% endif %}
+  <div class="acciones">
+    <form method="post" action="{{ base }}empezar">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <button class="principal">{{ 'Empezar a releerlo hoy' if lecturas | selectattr('estado', 'equalto', 'leido') | list else 'Empiezo este libro hoy' }}</button>
+    </form>
+    {% if apertura and apertura != hoy %}
+    <form method="post" action="{{ base }}empezar">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <input type="hidden" name="fecha" value="{{ apertura }}">
+      <button>Lo empecé el {{ apertura | fecha('%d/%m') }}</button>
+    </form>
+    {% endif %}
+    {% if quiero %}
+    <form method="post" action="{{ base }}quitar-quiero">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <button class="suave">Quitar de «Quiero leer»</button>
+    </form>
+    {% elif not (obra and obra.decision == 'soltar') %}
+    <form method="post" action="{{ base }}quiero">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <button>Quiero leerlo</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if not lecturas | selectattr('estado', 'equalto', 'leido') | list %}
+  <details class="mini ya-leido">
+    <summary>Ya lo leí hace tiempo</summary>
+    {{ form_recuerdo(base ~ 'ya-leido', boton='Apuntarlo como leído', con_anio=true, volver=volver) }}
+  </details>
+  {% endif %}
+  {% endif %}
+
+  {% set pasadas = lecturas | rejectattr('estado', 'in', ['quiero', 'leyendo']) | list %}
+  {% if pasadas %}
+  <ul class="lecturas-pasadas">
+    {% for l in pasadas %}{{ lectura_pasada(l, volver) }}{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if obra and obra.recuerdo %}
+  <p class="recuerdo-actual">
+    <span>Recuerdo: <b>{{ NOMBRE_RECUERDO[obra.recuerdo] }}</b>{% if obra.decision %} · {{ DECISIONES[obra.decision] | lower }}{% endif %}</span>
+  </p>
+  {% if obra.recuerdo != 'bien' or not leyendo %}
+  <details class="mini">
+    <summary>Cambiar cuánto lo recuerdo</summary>
+    {{ form_recuerdo(base ~ 'recuerdo', recuerdo=obra.recuerdo, decision=obra.decision, volver=volver) }}
+  </details>
+  {% endif %}
+  {% endif %}
+</section>
+{% endmacro %}

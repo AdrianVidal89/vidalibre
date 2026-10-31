@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block titulo %}Repasar la biblioteca — {{ ajustes.titulo }}{% endblock %}
+{% block contenido %}
+<div class="titulo-barra">
+  <h1>Repasar la biblioteca</h1>
+  <span class="cuantos">{{ total - quedan }} de {{ total }} repasados</span>
+</div>
+<div class="progreso"><i style="transform: scaleX({{ ((total - quedan) / total) if total else 1 }})"></i></div>
+
+{% if not libro %}
+<p class="vacio">No queda ninguno: toda la biblioteca está repasada. <a href="{{ url_for('lecturas.panel') }}">Volver a Lecturas</a>.</p>
+{% else %}
+<article class="repaso">
+  <a class="cubierta" href="{{ url_for('paginas.libro', id_libro=libro.id) }}" target="_blank" rel="noopener">
+    <img src="{{ portada_url(libro) }}" alt="Portada de {{ libro.titulo }}"></a>
+  <div>
+    <h2>{{ libro.titulo }}</h2>
+    <p class="autores">{{ libro.autores | join(', ') }}{% if libro.publicado %} · {{ libro.publicado | fecha('%Y') }}{% endif %}</p>
+
+    <div class="acciones">
+      <form method="post"><input type="hidden" name="libro" value="{{ libro.id }}">
+        <button name="que" value="no">No lo he leído</button></form>
+      <form method="post"><input type="hidden" name="libro" value="{{ libro.id }}">
+        <button name="que" value="quiero">Quiero leerlo</button></form>
+      <form method="post"><input type="hidden" name="libro" value="{{ libro.id }}">
+        <button name="que" value="leyendo">Lo estoy leyendo</button></form>
+    </div>
+
+    <details class="ya-leido" open>
+      <summary>Ya lo leí</summary>
+      <form method="post" class="recuerdo-form">
+        <input type="hidden" name="libro" value="{{ libro.id }}">
+        <input type="hidden" name="que" value="leido">
+        <fieldset class="opciones">
+          <legend>¿Cuánto lo recuerdas?</legend>
+          {% for clave, nombre in RECUERDOS %}
+          <label class="opcion"><input type="radio" name="recuerdo" value="{{ clave }}" required><span>{{ nombre }}</span></label>
+          {% endfor %}
+        </fieldset>
+        <fieldset class="opciones si-borroso">
+          <legend>Si está borroso u olvidado</legend>
+          <label class="opcion"><input type="radio" name="decision" value="releer"><span>Quiero releerlo</span></label>
+          <label class="opcion"><input type="radio" name="decision" value="soltar"><span>Lo suelto</span></label>
+        </fieldset>
+        <fieldset>
+          <legend>Estrellas <small>(opcional)</small></legend>
+          <div class="estrellas-elegir" data-estrellas>
+            <input type="range" name="estrellas" min="0" max="5" step="0.5" value="0" aria-label="Estrellas">
+            <output class="estrellas-fijas">sin valorar</output>
+          </div>
+        </fieldset>
+        <label>Año aproximado <small>(opcional)</small>
+          <input type="number" name="anio" min="1940" max="2100" inputmode="numeric" placeholder="p. ej. 2012"></label>
+        <button class="principal">Apuntar y siguiente</button>
+      </form>
+    </details>
+    <p class="explica">Lo que marques aquí va como «leído hace tiempo»: sale en tu historial pero no cuenta para
+      el ritmo del contador. Si lo recuerdas bien, desde su ficha puedes escribirle una reseña cuando quieras.</p>
+  </div>
+</article>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,24 @@
+{# El recuadro «Mi lectura» en la ficha de un libro de la biblioteca. #}
+{% from "_lectura.html" import caja with context %}
+{% if mi_lectura and not mi_lectura.aqui %}
+<section class="mi-lectura">
+  <h2>Mi lectura</h2>
+  <p class="explica">El diario de lecturas vive en la biblioteca de casa.
+    <a href="{{ mi_lectura.enlace }}">Abrir este libro allí</a>.</p>
+</section>
+{% elif mi_lectura %}
+{% set vuelta = url_for('paginas.libro', id_libro=libro.id) ~ '#mi-lectura' %}
+{{ caja(request.script_root ~ '/lecturas/libro/' ~ libro.id ~ '/', mi_lectura.obra, mi_lectura.lecturas,
+        mi_lectura.leyendo, mi_lectura.quiero, mi_lectura.apertura, mi_lectura.contador,
+        mi_lectura.hoy, vuelta) }}
+{% for externa in mi_lectura.externas %}
+<div class="aviso atencion asociar">
+  <p>En tu diario tienes <b>«{{ externa.titulo }}»</b> apuntado como libro de fuera de la biblioteca.
+    ¿Es este? Al unirlos, sus lecturas y reseñas pasan a este libro.</p>
+  <form method="post" action="{{ url_for('lecturas.asociar', id_obra=externa.id) }}">
+    <input type="hidden" name="libro" value="{{ libro.id }}">
+    <button class="principal pequeno">Sí, es este: unirlos</button>
+  </form>
+</div>
+{% endfor %}
+{% endif %}

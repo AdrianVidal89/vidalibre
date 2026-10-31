@@ -85,6 +85,7 @@ def leer(id_libro):
         return render_template("lector_preparar.html", libro=datos, error=str(ex))
 
     posicion = lector.leer_posicion(_catalogo(), id_libro, formato) or {}
+    _apuntar_apertura(id_libro)
     return render_template(
         "lector.html",
         libro=datos,
@@ -113,6 +114,18 @@ def leer(id_libro):
             "indice": libro.indice,
         }, ensure_ascii=False),
     )
+
+
+def _apuntar_apertura(id_libro):
+    """El primer día que abres un libro en el lector. Con eso, si pasas del 5 %
+    sin haberlo marcado como empezado, Lecturas te pregunta «¿lo has empezado?
+    ¿desde el día tal?». No apunta nada por su cuenta: hojear no es empezar."""
+    if _ajustes().servidor or _ajustes().solo_lectura:
+        return
+    try:
+        current_app.config["LECTURAS"].apuntar_apertura(id_libro)
+    except Exception:
+        pass
 
 
 @paginas_lector.route("/libro/<int:id_libro>/leer/pagina/<int:numero>")

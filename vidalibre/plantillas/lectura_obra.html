@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_lectura.html" import caja, form_recuerdo with context %}
+{% block titulo %}{{ obra.titulo }} — Lecturas{% endblock %}
+{% block contenido %}
+<article class="ficha">
+  <div class="ficha-portada">
+    <span class="cubierta"><img src="{{ portada_obra(obra, mini=false) }}" alt="Portada de {{ obra.titulo }}"></span>
+  </div>
+  <div class="ficha-datos">
+    <p class="fuera-marca grande">No está en tu biblioteca · solo en tu diario</p>
+    <h1>{{ obra.titulo }}</h1>
+    <p class="autores">{{ obra.autores | join(', ') }}</p>
+    <ul class="apuntes-ficha">
+      {% if obra.anio %}<li><span>Publicado</span><strong>{{ obra.anio }}</strong></li>{% endif %}
+      {% if obra.paginas %}<li><span>Páginas</span><strong>{{ obra.paginas }}</strong></li>{% endif %}
+      {% if obra.isbn %}<li><span>ISBN</span><strong>{{ obra.isbn }}</strong></li>{% endif %}
+    </ul>
+
+    {% if request.args.get('ya_leido') and not lecturas %}
+    <section class="mi-lectura">
+      <h2>Apuntarlo como leído</h2>
+      {{ form_recuerdo(url_for('lecturas.accion_obra', id_obra=obra.id, accion='ya-leido'), boton='Apuntarlo', con_anio=true,
+                       volver=url_for('lecturas.obra', id_obra=obra.id)) }}
+    </section>
+    {% else %}
+    {{ caja(request.script_root ~ '/lecturas/obra/' ~ obra.id ~ '/', obra, lecturas, leyendo, quiero, none,
+            contador, hoy, url_for('lecturas.obra', id_obra=obra.id)) }}
+    {% endif %}
+
+    {% if obra.sinopsis %}
+    <section class="sinopsis">
+      <h2>Sinopsis</h2>
+      <div class="descripcion">{% for parrafo in obra.sinopsis.split('\n') if parrafo.strip() %}<p>{{ parrafo }}</p>{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    <section class="sinopsis">
+      <h2>¿Ya lo tienes en la biblioteca?</h2>
+      <p class="explica">Si lo has comprado y subido, únelo: tus lecturas y reseñas pasan a ese libro y este
+        apunte de fuera desaparece.</p>
+      <form method="get" class="buscador-fuentes">
+        <input type="search" name="buscar" value="{{ consulta if consulta is not none else obra.titulo }}" placeholder="Título en la biblioteca">
+        <button>Buscar en la biblioteca</button>
+      </form>
+      {% if consulta is not none %}
+      {% if candidatos %}
+      <ul class="lista-obras">
+        {% for libro in candidatos %}
+        <li class="fila-obra">
+          <span class="fila-obra-portada"><img src="{{ portada_url(libro, mini=true) }}" alt="" width="64" height="96"></span>
+          <div class="fila-obra-datos">
+            <a class="titulo" href="{{ url_for('paginas.libro', id_libro=libro.id) }}">{{ libro.titulo }}</a>
+            <span class="autor">{{ libro.autores | join(', ') }}</span>
+            <form method="post" action="{{ url_for('lecturas.asociar', id_obra=obra.id) }}">
+              <input type="hidden" name="libro" value="{{ libro.id }}">
+              <button class="principal pequeno">Es este: unirlos</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="vacio">No hay nada así en la biblioteca.</p>{% endif %}
+      {% endif %}
+    </section>
+
+    <form method="post" action="{{ url_for('lecturas.accion_obra', id_obra=obra.id, accion='borrar') }}"
+          data-confirmar="Se borra «{{ obra.titulo }}» del diario, con sus lecturas y reseñas. ¿Seguro?" class="mas">
+      <button class="peligro pequeno">Quitarlo del diario</button>
+    </form>
+  </div>
+</article>
+{% endblock %}

@@ -455,9 +455,12 @@ def libro(id_libro):
     datos = catalogo().libro(id_libro)
     if not datos:
         abort(404)
+    from .lecturas_web import contexto_libro
+
     return render_template(
         "libro.html",
         libro=datos,
+        mi_lectura=contexto_libro(datos),
         lectura=lector.leer_posicion(catalogo(), id_libro, "EPUB"),
         relacionados=_relacionados(datos),
         hay_motor=motor.hay_motor(),

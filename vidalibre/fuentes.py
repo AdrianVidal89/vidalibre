@@ -289,6 +289,9 @@ def _candidato(documento):
         "clave": documento.get("key", ""),
         "enlace": "https://openlibrary.org" + documento.get("key", ""),
         "sinopsis": "",
+        # Páginas de la edición típica: es lo que permite estimar cuánto mide
+        # un libro que no está en la biblioteca (y no se puede contar).
+        "paginas": documento.get("number_of_pages_median") or 0,
     }
 
 
@@ -297,7 +300,7 @@ def _buscar_openlibrary(consulta, maximo):
         "q": consulta,
         "limit": maximo,
         "fields": "title,author_name,first_publish_year,cover_i,isbn,subject,language,"
-                  "publisher,key,first_sentence",
+                  "publisher,key,first_sentence,number_of_pages_median",
     })
     try:
         datos = json.loads(_traer(f"{OPENLIBRARY_BUSCAR}?{parametros}"))

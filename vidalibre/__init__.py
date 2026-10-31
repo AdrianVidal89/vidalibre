@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 NOMBRE = "Vidalibre"
 
 
@@ -138,10 +138,15 @@ def crear_app(ajustes=None):
         catalogo, firma=f"{NOMBRE} ({__version__})", puente=app.config["PUENTE"]
     )
     app.config["COLA"] = ColaTrabajos()
+    from .lecturas import Registro
 
-    from . import lector_web, opds, web
+    # El diario de lecturas: base aparte del catálogo de Calibre (ver lecturas.py).
+    app.config["LECTURAS"] = Registro(ajustes.datos)
+
+    from . import lector_web, lecturas_web, opds, web
 
     app.register_blueprint(web.paginas)
     app.register_blueprint(lector_web.paginas_lector)
+    app.register_blueprint(lecturas_web.paginas_lecturas)
     app.register_blueprint(opds.catalogo_opds)
     return app

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Lecturas — {{ ajustes.titulo }}{% endblock %}
+{% block contenido %}
+<h1>Lecturas</h1>
+<p class="vacio">El diario de lecturas vive en la biblioteca de casa, para que haya uno solo.
+  {% if enlace %}<a class="boton principal" href="{{ enlace }}">Abrirlo allí</a>{% endif %}</p>
+{% endblock %}

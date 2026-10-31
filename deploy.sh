@@ -73,6 +73,18 @@ aviso "Copia del catálogo en $COPIA"
 # Se guardan las diez últimas y se tiran las demás.
 ls -1t "$COPIAS"/metadata-*.db 2>/dev/null | tail -n +11 | while read -r VIEJA; do rm -f "$VIEJA"; done
 
+# El diario de lecturas (reseñas, fechas, recuerdos) tampoco se puede reponer:
+# es lo único que Vidalibre guarda fuera del catálogo. Va con sus ficheros de
+# diario (-wal) para que la copia salga entera aunque la app esté en marcha.
+if [ -f "$CARPETA/datos/lecturas.db" ]; then
+    MARCA="$(date '+%Y%m%d-%H%M%S')"
+    for PARTE in "" -wal -shm; do
+        [ -f "$CARPETA/datos/lecturas.db$PARTE" ] && cp "$CARPETA/datos/lecturas.db$PARTE" "$COPIAS/lecturas-$MARCA.db$PARTE"
+    done
+    aviso "Copia del diario de lecturas en $COPIAS/lecturas-$MARCA.db"
+    ls -1t "$COPIAS"/lecturas-*.db 2>/dev/null | tail -n +11 | while read -r VIEJA; do rm -f "$VIEJA" "$VIEJA-wal" "$VIEJA-shm"; done
+fi
+
 # --- Construir y levantar -----------------------------------------------------
 aviso "Construyendo la imagen (la primera vez tarda: lleva Calibre dentro)…"
 docker compose build
