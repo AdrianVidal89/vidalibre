@@ -244,6 +244,7 @@ def panel():
         para_ti_comprar=[r for r in recomendaciones if r["tipo"] == "comprar"],
         fecha_recomendaciones=reg.preferencia("recomendaciones_fecha"),
         pendientes=len(reg.pendientes_de_procesar()),
+        hoy=hoy().isoformat(),
     )
 
 
@@ -284,11 +285,14 @@ def _accion(obra, accion, vuelta):
         reg.empezar(obra["id"], request.form.get("fecha"))
         medir_palabras(obra)
         cuenta = contador()
+        dia = a_fecha(request.form.get("fecha"))
+        cuando = (f"Leyendo desde el {dia.strftime('%d/%m/%Y')}." if dia and dia < hoy()
+                  else "Empezado.")
         if cuenta.get("libros") and not cuenta["calibrando"]:
-            flash(f"Empezado. Es uno de los ~{cuenta['libros']} que te quedan: que merezca la pena.",
+            flash(f"{cuando} Es uno de los ~{cuenta['libros']} que te quedan: que merezca la pena.",
                   "ok")
         else:
-            flash("Empezado. Cuando lo acabes, márcalo aquí mismo.", "ok")
+            flash(f"{cuando} Cuando lo acabes, márcalo aquí mismo.", "ok")
     elif accion == "quiero":
         if reg.quiero(obra["id"]):
             flash("Apuntado en «Quiero leer».", "ok")
@@ -480,8 +484,10 @@ def fuera():
             return redirect(url_for("lecturas.obra", id_obra=nueva["id"]))
         if formulario.get("que") == "leyendo":
             registro().empezar(nueva["id"])
-            flash("Empezado. No está en tu biblioteca: lo verás solo en Lecturas.", "ok")
-            return redirect(url_for("lecturas.obra", id_obra=nueva["id"]))
+            flash("Empezado hoy. Si lo empezaste antes, pon el día abajo. No está en tu biblioteca: "
+                  "lo verás solo en Lecturas.", "ok")
+            return redirect(url_for("lecturas.obra", id_obra=nueva["id"], corregir=1,
+                                    _anchor="corregir-inicio"))
         flash("Apuntado. Ahora dime cuánto lo recuerdas.", "ok")
         return redirect(url_for("lecturas.obra", id_obra=nueva["id"], ya_leido=1))
 
@@ -534,7 +540,7 @@ def repaso():
                 _llevar_estrellas_a_calibre(obra, request.form.get("estrellas"))
         elif que == "leyendo":
             reg.marcar_repasado(obra["id"])
-            reg.empezar(obra["id"])
+            reg.empezar(obra["id"], request.form.get("fecha"))
         return redirect(url_for("lecturas.repaso"))
 
     hechos = reg.libros_repasados()
@@ -544,7 +550,7 @@ def repaso():
     return render_template(
         "lecturas_repaso.html", seccion="lecturas", libro=actual,
         quedan=len(pendientes), total=len(ids), RECUERDOS=RECUERDOS,
-        SENSACIONES=SENSACIONES,
+        SENSACIONES=SENSACIONES, hoy=hoy().isoformat(),
     )
 
 
