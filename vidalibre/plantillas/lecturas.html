@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_lectura.html" import form_empezado_antes with context %}
 {% block titulo %}Lecturas — {{ ajustes.titulo }}{% endblock %}
 
 {% macro fila_obra(l, extra="") %}
@@ -109,6 +110,8 @@
           {% if p.desde %}<input type="hidden" name="fecha" value="{{ p.desde }}">{% endif %}
           <button class="pequeno">Sí, {{ 'desde el ' ~ (p.desde | fecha('%d/%m')) if p.desde else 'desde hoy' }}</button>
         </form>
+        {{ form_empezado_antes(url_for('lecturas.accion_libro', id_libro=p.id, accion='empezar'), hoy,
+                               volver=url_for('lecturas.panel'), resumen='Sí, pero desde otro día') }}
       </div>
     </li>
     {% endfor %}
@@ -201,6 +204,8 @@
         <input type="hidden" name="volver" value="{{ url_for('lecturas.panel') }}">
         <button class="pequeno">Lo empiezo hoy</button>
       </form>
+      {{ form_empezado_antes(url_for('lecturas.accion_obra', id_obra=l.obra, accion='empezar'), hoy,
+                             volver=url_for('lecturas.panel'), resumen='Lo empecé otro día') }}
     {% endcall %}
     {% endfor %}
   </ul>

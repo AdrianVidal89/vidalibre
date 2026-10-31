@@ -26,6 +26,21 @@
 {% endmacro %}
 
 
+{# «Lo empecé hace tiempo y lo sigo leyendo»: empezar con un día del pasado. #}
+{% macro form_empezado_antes(accion, hoy, apertura=none, volver="", resumen="Lo empecé otro día y sigo leyéndolo") %}
+<details class="mini empezado-antes">
+  <summary>{{ resumen }}</summary>
+  <form method="post" action="{{ accion }}" class="en-linea">
+    {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+    <label>Lo empecé el <input type="date" name="fecha" value="{{ apertura or '' }}" max="{{ hoy }}" required></label>
+    <button class="pequeno">Apuntarlo como leyendo</button>
+  </form>
+  <p class="explica">Si fue hace más de dos meses se apunta igual, pero no cuenta para el ritmo del contador:
+    de tan lejos la fecha ya no es de fiar.</p>
+</details>
+{% endmacro %}
+
+
 {% macro lectura_pasada(l, volver="") %}
 <li class="lectura-pasada">
   <div class="lectura-pasada-cabeza">
@@ -91,7 +106,7 @@
       <button class="suave">Abandonarlo</button>
     </form>
   </div>
-  <details class="mini">
+  <details class="mini" id="corregir-inicio"{% if request.args.get('corregir') %} open{% endif %}>
     <summary>Corregir el día en que lo empecé</summary>
     <form method="post" action="{{ url_for('lecturas.accion_lectura', id_lectura=leyendo.id, accion='fechas') }}" class="en-linea">
       <input type="hidden" name="volver" value="{{ volver }}">
@@ -131,6 +146,7 @@
     </form>
     {% endif %}
   </div>
+  {{ form_empezado_antes(base ~ 'empezar', hoy, apertura, volver) }}
   {% if not lecturas | selectattr('estado', 'equalto', 'leido') | list %}
   <details class="mini ya-leido">
     <summary>Ya lo leí hace tiempo</summary>

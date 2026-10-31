@@ -25,6 +25,14 @@
       <form method="post"><input type="hidden" name="libro" value="{{ libro.id }}">
         <button name="que" value="leyendo">Lo estoy leyendo</button></form>
     </div>
+    <details class="mini empezado-antes">
+      <summary>Lo estoy leyendo, pero lo empecé otro día</summary>
+      <form method="post" class="en-linea">
+        <input type="hidden" name="libro" value="{{ libro.id }}">
+        <label>Lo empecé el <input type="date" name="fecha" max="{{ hoy }}" required></label>
+        <button name="que" value="leyendo" class="pequeno">Apuntar y siguiente</button>
+      </form>
+    </details>
 
     <details class="ya-leido" open>
       <summary>Ya lo leí</summary>
