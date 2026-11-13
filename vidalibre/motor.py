@@ -55,7 +55,21 @@ def hay_motor():
     return bool(shutil.which(CONVERTIR)) and bool(shutil.which(METADATOS))
 
 
+# La versión de Calibre no cambia mientras corre el contenedor. Preguntarla
+# arranca Calibre entero (~70 MB de disco), y /estado lo hacía en cada
+# comprobación de salud, una por minuto: del orden de 100 GB leídos al día.
+_version_calibre = None
+
+
 def version_calibre():
+    global _version_calibre
+    if _version_calibre is None:
+        _version_calibre = _preguntar_version_calibre()
+    return _version_calibre
+
+
+def _preguntar_version_calibre():
+    # Si falla no se guarda nada, y se vuelve a intentar en la siguiente.
     try:
         salida = subprocess.run([CONVERTIR, "--version"], capture_output=True, text=True, timeout=60)
         m = re.search(r"calibre\s+([0-9.]+)", salida.stdout or "")
